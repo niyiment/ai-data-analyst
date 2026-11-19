@@ -9,6 +9,8 @@ from pydantic import BaseModel
 from app.core.config import get_settings
 from app.core.errors import DomainError, ErrorResponse
 from app.core.logging import configure_logging
+from app.sessions.router import internal_router as sessions_internal_router
+from app.sessions.router import router as sessions_router
 
 
 class HealthResponse(BaseModel):
@@ -38,6 +40,9 @@ def create_app() -> FastAPI:
     @application.get("/health", response_model=HealthResponse, tags=["system"])
     async def health() -> HealthResponse:
         return HealthResponse(status="ok")
+
+    application.include_router(sessions_router)
+    application.include_router(sessions_internal_router)
 
     return application
 
