@@ -73,3 +73,10 @@ class UnsupportedFile(DomainError):
 
     status_code = 400
     code = "UNSUPPORTED_FILE"
+
+
+class QueryTimeout(DomainError):
+    """Raised when a read-only SQL query exceeds the statement timeout."""
+
+    status_code = 504
+    code = "QUERY_TIMEOUT"

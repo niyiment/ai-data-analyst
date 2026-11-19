@@ -107,3 +107,29 @@ class DatasetColumnModel(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     table: Mapped[DatasetTableModel] = relationship(back_populates="columns")
+
+
+class QueryRunModel(Base):
+    """Persisted metadata for a natural-language question and its validated SQL run."""
+
+    __tablename__ = "query_runs"
+    __table_args__ = (Index("ix_query_runs_session_created", "session_id", "created_at"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("app.sessions.id", ondelete="CASCADE"), nullable=False
+    )
+    dataset_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("app.datasets.id", ondelete="CASCADE"), nullable=False
+    )
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    plan: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    generated_sql: Mapped[str | None] = mapped_column(Text, nullable=True)
+    validation_status: Mapped[str] = mapped_column(Text, nullable=False)
+    rejection_reasons: Mapped[list[dict[str, str]] | None] = mapped_column(JSON, nullable=True)
+    status: Mapped[str] = mapped_column(Text, nullable=False)
+    error_code: Mapped[str | None] = mapped_column(Text, nullable=True)
+    row_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    truncated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    stage_timings_ms: Mapped[dict[str, int]] = mapped_column(JSON, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
