@@ -12,6 +12,7 @@ from app.core.logging import configure_logging
 from app.datasets.router import router as datasets_router
 from app.insights.router import router as insights_router
 from app.query.router import router as query_router
+from app.reports.router import router as reports_router
 from app.sessions.router import internal_router as sessions_internal_router
 from app.sessions.router import router as sessions_router
 
@@ -49,6 +50,7 @@ def create_app() -> FastAPI:
     application.include_router(datasets_router)
     application.include_router(query_router)
     application.include_router(insights_router)
+    application.include_router(reports_router)
 
     return application
 
