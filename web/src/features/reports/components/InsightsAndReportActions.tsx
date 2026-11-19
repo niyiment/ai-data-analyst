@@ -11,9 +11,14 @@ import {
 interface InsightsAndReportActionsProps {
   queryRunId: string;
   question: string;
+  onReportCreated?: (report: ReportSummary) => void;
 }
 
-export function InsightsAndReportActions({ queryRunId, question }: InsightsAndReportActionsProps) {
+export function InsightsAndReportActions({
+  queryRunId,
+  question,
+  onReportCreated,
+}: InsightsAndReportActionsProps) {
   const [insights, setInsights] = useState<InsightsData | null>(null);
   const [report, setReport] = useState<ReportSummary | null>(null);
   const [busy, setBusy] = useState(false);
@@ -35,7 +40,9 @@ export function InsightsAndReportActions({ queryRunId, question }: InsightsAndRe
     setBusy(true);
     setError(null);
     try {
-      setReport(await createReport(question, queryRunId));
+      const created = await createReport(question, queryRunId);
+      setReport(created);
+      onReportCreated?.(created);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create report.");
     } finally {
@@ -44,37 +51,36 @@ export function InsightsAndReportActions({ queryRunId, question }: InsightsAndRe
   }
 
   return (
-    <div style={{ marginTop: "1rem" }}>
-      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-        <button type="button" disabled={busy} onClick={() => void handleGenerateInsights()}>
-          {busy ? "Working…" : "Generate insights"}
+    <div style={{ marginTop: "12px" }}>
+      <div className="actions">
+        <button type="button" className="btn" disabled={busy} onClick={() => void handleGenerateInsights()}>
+          {busy ? "Working…" : "✦ Generate insights"}
         </button>
-        <button type="button" disabled={busy} onClick={() => void handleCreateReport()}>
-          Pin to report
+        <button type="button" className="btn" disabled={busy} onClick={() => void handleCreateReport()}>
+          ＋ Pin to report
         </button>
         {report && (
           <>
-            <a href={`/api/v1/reports/${report.id}/export?format=html`} download>
-              Download HTML
+            <a className="btn primary" href={`/api/v1/reports/${report.id}/export?format=html`} download>
+              ⇩ HTML
             </a>
-            <a href={`/api/v1/reports/${report.id}/export?format=pdf`} download>
-              Download PDF
+            <a className="btn primary" href={`/api/v1/reports/${report.id}/export?format=pdf`} download>
+              ⇩ PDF
             </a>
           </>
         )}
       </div>
 
       {error && (
-        <p role="alert" style={{ color: "#b91c1c", marginTop: "0.5rem" }}>
+        <p role="alert" className="alert-error" style={{ marginTop: "10px", marginBottom: 0 }}>
           {error}
         </p>
       )}
 
       {insights && (
-        <section aria-label="Insights" style={{ marginTop: "0.75rem" }}>
-          <p>
-            <strong>Summary:</strong> {insights.summary}
-          </p>
+        <section className="insight-card" aria-label="Insights">
+          <div className="insight-head">✦ AI Insights</div>
+          <p>{insights.summary}</p>
           {insights.key_findings.length > 0 && (
             <ul>
               {insights.key_findings.map((finding, idx) => (

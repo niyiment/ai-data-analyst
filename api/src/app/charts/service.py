@@ -60,7 +60,5 @@ def infer_default_chart_spec(
 
     x_col = label_cols[0]
     y_col = numeric_cols[0]
-    chart_type: ChartType = (
-        "line" if "date" in x_col.lower() or "month" in x_col.lower() else "bar"
-    )
+    chart_type: ChartType = "line" if "date" in x_col.lower() or "month" in x_col.lower() else "bar"
     return ChartSpec(chart_type=chart_type, x=x_col, y=y_col, title=title)
