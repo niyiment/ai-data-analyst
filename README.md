@@ -1,2 +1,164 @@
-"# AI Data Analyst" 
-"# ai-data-analyst" 
+# AI Data Analyst
+
+Upload a CSV or Excel spreadsheet, ask questions in plain English, and receive a verified, inspectable answer: the query plan, generated read-only SQL, result table, interactive chart, on-demand written insights, and an exportable PDF/HTML report.
+
+Built to production-grade engineering standards on free cloud tiers, with defence-in-depth SQL safety, anonymous 24-hour sessions, and first-class NL-to-SQL evaluation.
+
+---
+
+## Key Features
+
+- **Spreadsheet to queryable tables:** Upload CSV or multi-sheet XLSX files (up to 10 MB). Each sheet becomes a sanitised PostgreSQL table in an isolated per-dataset schema.
+- **Schema review & sample data:** Inspect inferred column types and preview rows, rename columns or override types before querying, or load built-in sample datasets in one click.
+- **Two-stage NL-to-SQL pipeline:** Complex questions produce a structured query plan before SQL generation (simple single-table questions skip the plan stage to save latency and quota). Ambiguous questions trigger a targeted clarification with selectable options.
+- **Defence-in-depth SQL safety:** Every generated query passes a SQLGlot AST validator pipeline (allowlists, single `SELECT` only, no mutations, no locking, no system catalogs) and executes on a dedicated `analyst_ro` PostgreSQL role inside a read-only transaction with a locked `search_path`, statement timeout, and row cap.
+- **Safe visualisations & insights:** The LLM returns a typed chart specification validated against actual result columns and rendered with Apache ECharts (falling back to the table if invalid). Insights are generated on demand strictly from the capped result set.
+- **Exportable reports:** Pin answers into a report (question, SQL, table, chart, insights) and download as PDF or HTML.
+- **First-class evaluation:** Built-in evaluation page and runner that executes golden question sets against persistent demo schemas and tracks execution accuracy, validator rejection rate, latency, and token cost.
+- **Privacy by default:** Anonymous sessions via `Secure`, `HttpOnly`, `SameSite` cookies—no accounts, no tokens in URLs. All session data is automatically purged after 24 hours, with a one-click **"Delete my data now"** action.
+
+---
+
+## Architecture
+
+```mermaid
+flowchart LR
+    Browser["Browser (Next.js UI)"] -->|Same-origin /api/*| Proxy["Next.js Rewrite Proxy (Vercel)"]
+    Proxy --> API["FastAPI Backend (Render)"]
+
+    subgraph API_Layers["FastAPI Feature Modules"]
+        Router["Routers (HTTP only)"] --> Service["Services (Use cases)"]
+        Service --> Repo["Repositories (Metadata SQL)"]
+        Service --> LLM["LLMClient Port (Gemini)"]
+        Service --> Validator["SQLGlot AST Validator"]
+        Validator --> Executor["Read-Only Executor"]
+    end
+
+    API --> Router
+    Repo -->|app_rw role| PG_App[("PostgreSQL: app schema")]
+    Executor -->|analyst_ro role| PG_DS[("PostgreSQL: ds_* & demo_* schemas")]
+    GHA["GitHub Actions (Scheduled Cleanup)"] -->|POST /api/v1/internal/cleanup| API
+```
+
+### Core Architectural Principles
+
+- **Strict layering:** `router -> service -> repository`. Routers handle HTTP only; services orchestrate use cases; repositories are the only layer touching metadata SQL.
+- **Provider independence:** All LLM calls go through an `LLMClient` interface with versioned prompt templates loaded from files.
+- **Same-origin cookies:** Next.js proxies `/api/*` to the FastAPI backend so cookies remain first-party across free-tier hosts.
+- **Two-layer data expiry:** Lazy expiry on access plus a scheduled GitHub Actions cleanup job calling an authenticated, idempotent cleanup endpoint.
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+| --- | --- |
+| **Frontend** | Next.js (TypeScript strict mode), Apache ECharts, Zod, Vitest, Playwright |
+| **Backend** | FastAPI (Python 3.12), Pydantic, SQLGlot, Alembic, `mypy` (strict), `Ruff`, `pytest` |
+| **Database** | PostgreSQL (Docker Compose locally; Neon free tier in production) |
+| **LLM** | Google Gemini behind an `LLMClient` port |
+| **Hosting & CI** | Vercel (web), Render (API Docker container), GitHub Actions (CI & scheduled cleanup) |
+
+---
+
+## Repository Structure
+
+```text
+ai-data-analyst/
+├── api/                 # FastAPI backend (feature-based modules, migrations, prompts, tests)
+├── web/                 # Next.js frontend (thin app/ pages, features/<name>/ modules)
+├── docs/                # Engineering documentation & ADRs
+│   └── adr/             # Architecture Decision Records (0000–0012)
+├── .claude/skills/      # Task-specific AI coding playbooks
+├── AGENTS.md            # Root rules for AI coding assistants
+└── README.md
+```
+
+> **Note:** The repository is currently at **Week 0 (Foundations)**—engineering documentation and agent playbooks are in place, and the `api/` and `web/` scaffold is next.
+
+---
+
+## Security & Privacy
+
+- **Zero cross-session access:** Each dataset lives in a server-generated schema (`ds_<random hex>`). Every resource ID is resolved through the current session; unauthorised IDs return `NOT_FOUND`.
+- **Prompt injection resilience:** Sampled cell values are treated as untrusted data. Safety is enforced by the AST validator and PostgreSQL role privileges, never by prompt instructions.
+- **No secrets or user data in logs:** Structured JSON logs include only request IDs, session hashes, stage timings, and error codes.
+- **Export safety:** Leading formula characters (`=`, `+`, `-`, `@`) are neutralised in exported reports/CSV, and all rendered output is escaped under strict CSP headers.
+
+See [docs/SECURITY.md](docs/SECURITY.md) for the full threat model.
+
+---
+
+## Initial Limits (Defaults)
+
+| Limit | Default |
+| --- | --- |
+| Upload size | 10 MB |
+| Rows per sheet | 100,000 |
+| Columns per sheet | 100 |
+| Sheets per file | 5 |
+| Datasets per session | 3 |
+| Result rows returned | 1,000 |
+| Query timeout | 10 seconds |
+| Questions per session / hour | 30 |
+| Session lifetime | 24 hours |
+
+---
+
+## Getting Started (Local Development)
+
+### Prerequisites
+
+- Docker & Docker Compose
+- Python 3.12+
+- Node.js 20+
+- A Google Gemini API key
+
+### Environment Variables
+
+Never commit secret values. Configure the following in your local `.env` files once the scaffold is generated (see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for details):
+
+- **API:** `DATABASE_URL_APP`, `DATABASE_URL_ANALYST`, `DATABASE_URL_OWNER` *(migrations only)*, `GEMINI_API_KEY`, `GEMINI_MODEL`, `SESSION_TTL_HOURS`, `CLEANUP_SECRET`, `ALLOWED_ORIGIN`, `RATE_LIMIT_*`, `MAX_UPLOAD_MB`, `MAX_ROWS`, `QUERY_TIMEOUT_SECONDS`, `LOG_LEVEL`
+- **Web:** `API_BASE_URL` (server-side only, for `/api/*` rewrites)
+
+---
+
+## Testing & Evaluation
+
+- **Unit & API tests:** `pytest` with fake DB/LLM adapters (backend) and `Vitest` (frontend). No unit test ever calls the live Gemini API.
+- **Integration & security tests:** `pytest` against PostgreSQL in Docker, including an adversarial SQL suite (100% block target) and cross-session authorisation tests.
+- **End-to-end tests:** Playwright against the local stack.
+- **Evaluation:** Golden question sets (~30 questions per demo dataset) compared by *execution result* rather than SQL text, targeting at least **80% execution accuracy** (90% stretch).
+
+See [docs/TESTING.md](docs/TESTING.md) for details.
+
+---
+
+## Engineering Documentation
+
+| Document | Description |
+| --- | --- |
+| [docs/PRD.md](docs/PRD.md) | Product requirements, non-goals, limits, success metrics, and risks |
+| [docs/USER_STORIES.md](docs/USER_STORIES.md) | User stories and acceptance criteria across Epics A–F |
+| [docs/adr/](docs/adr/) | Architecture Decision Records (`0001`–`0012`) and template (`0000`) |
+| [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md) | Layering rules, file/function size limits, conventions, and Definition of Done |
+| [docs/DATABASE.md](docs/DATABASE.md) | Schemas, roles (`app_owner`, `app_rw`, `analyst_ro`), tables, indexes, and cleanup |
+| [docs/API.md](docs/API.md) | `/api/v1` endpoints, standard error shape, and ownership rules |
+| [docs/SECURITY.md](docs/SECURITY.md) | Threat model, mitigations, and security test suites |
+| [docs/TESTING.md](docs/TESTING.md) | Test pyramid and golden-set evaluation design |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Environments, configuration, CI/CD, and operational runbook |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | 6-week delivery plan (Weeks 0–5) |
+| [AGENTS.md](AGENTS.md) | Rules and guardrails for AI coding assistants |
+
+---
+
+## Roadmap
+
+| Week | Milestone |
+| --- | --- |
+| **0** | Foundations: docs, repo scaffold, CI (lint, type, size, layering), Docker Compose |
+| **1** | Sessions & ingestion: cookie sessions, upload, schema inference, per-dataset schemas, cleanup |
+| **2** | Safe query core: AST validator (100% adversarial block), read-only executor, plan/SQL pipeline |
+| **3** | Charts, insights & reports: ECharts spec validation, on-demand insights, PDF/HTML export |
+| **4** | Evaluation & hardening: golden sets, eval UI, rate limits, quota guard, accessibility |
+| **5** | Deploy & polish: Vercel + Render + Neon production deploy, scheduled cleanup, demo |
