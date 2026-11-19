@@ -1,11 +1,11 @@
 """Router tests for session endpoints and cookie flags (US-01, US-03)."""
 
 from httpx import ASGITransport, AsyncClient
-from tests.sessions.test_service import FakeSessionRepository
 
 from app.main import create_app
 from app.sessions.dependencies import SESSION_COOKIE_NAME, get_session_service
 from app.sessions.service import SessionService
+from tests.sessions.test_service import FakeSessionRepository
 
 
 async def test_post_session_sets_httponly_secure_cookie_and_hides_token() -> None:
