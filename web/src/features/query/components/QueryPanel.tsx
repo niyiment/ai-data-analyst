@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { InsightsAndReportActions } from "@/features/reports";
 import { askQuestion } from "../api/query-api";
 import type { QueryResult } from "../types/query";
 
@@ -145,6 +146,7 @@ export function QueryPanel({ datasetId }: QueryPanelProps) {
               </tbody>
             </table>
           </div>
+          <InsightsAndReportActions queryRunId={result.id} question={result.question} />
         </div>
       )}
     </section>
