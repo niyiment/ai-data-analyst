@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { QueryPanel } from "@/features/query";
 import {
   SessionBanner,
   createSession,
@@ -103,12 +104,15 @@ export function DatasetWorkspace() {
       )}
       <UploadPanel busy={busy} onUploadFile={handleUpload} onLoadSample={handleLoadSample} />
       {dataset && (
-        <section aria-label="Schema review">
-          <h2>Schema Review: {dataset.original_filename}</h2>
-          {dataset.tables.map((table) => (
-            <SchemaReviewTable key={table.id} table={table} onUpdateColumn={handleUpdateColumn} />
-          ))}
-        </section>
+        <>
+          <QueryPanel datasetId={dataset.id} />
+          <section aria-label="Schema review">
+            <h2>Schema Review: {dataset.original_filename}</h2>
+            {dataset.tables.map((table) => (
+              <SchemaReviewTable key={table.id} table={table} onUpdateColumn={handleUpdateColumn} />
+            ))}
+          </section>
+        </>
       )}
     </div>
   );
