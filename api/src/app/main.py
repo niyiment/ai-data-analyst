@@ -10,6 +10,7 @@ from app.core.config import get_settings
 from app.core.errors import DomainError, ErrorResponse
 from app.core.logging import configure_logging
 from app.datasets.router import router as datasets_router
+from app.insights.router import router as insights_router
 from app.query.router import router as query_router
 from app.sessions.router import internal_router as sessions_internal_router
 from app.sessions.router import router as sessions_router
@@ -47,6 +48,7 @@ def create_app() -> FastAPI:
     application.include_router(sessions_internal_router)
     application.include_router(datasets_router)
     application.include_router(query_router)
+    application.include_router(insights_router)
 
     return application
 

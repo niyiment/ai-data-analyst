@@ -133,3 +133,52 @@ class QueryRunModel(Base):
     truncated: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     stage_timings_ms: Mapped[dict[str, int]] = mapped_column(JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class QueryArtifactModel(Base):
+    """Persisted chart_spec or insights artifact for a query run."""
+
+    __tablename__ = "query_artifacts"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    query_run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("app.query_runs.id", ondelete="CASCADE"), nullable=False
+    )
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    content: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    is_valid: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+
+class ReportModel(Base):
+    """User-assembled report pinning one or more query runs."""
+
+    __tablename__ = "reports"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("app.sessions.id", ondelete="CASCADE"), nullable=False
+    )
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    items: Mapped[list["ReportItemModel"]] = relationship(
+        back_populates="report", cascade="all, delete-orphan", order_by="ReportItemModel.position"
+    )
+
+
+class ReportItemModel(Base):
+    """Ordered item inside a report referencing a query run."""
+
+    __tablename__ = "report_items"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    report_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("app.reports.id", ondelete="CASCADE"), nullable=False
+    )
+    query_run_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("app.query_runs.id", ondelete="CASCADE"), nullable=False
+    )
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    report: Mapped[ReportModel] = relationship(back_populates="items")
