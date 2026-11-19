@@ -31,15 +31,16 @@ AI Data Analyst turns spreadsheets into queryable tables and answers natural-lan
 
 ## Commands
 
-*(Fill in once the scaffold exists)*
-
-- Install: TBD
-- Run API: TBD
-- Run web: TBD
-- Lint: TBD
-- Type-check: TBD
-- Test: TBD
-- Run evaluation: TBD
+- Install API: `cd api && uv sync --python 3.12`
+- Install web: `cd web && pnpm install`
+- Run database: `docker compose up -d postgres`
+- Run API: `cd api && uv run uvicorn app.main:app --reload`
+- Run web: `cd web && pnpm dev`
+- Lint: `cd api && uv run ruff check .` and `cd web && pnpm run lint`
+- Type-check: `cd api && uv run mypy src tests` and `cd web && pnpm run typecheck`
+- Guardrails: `python scripts/check_limits.py` and `python scripts/check_layering.py`
+- Test: `cd api && uv run pytest`
+- Run evaluation: TBD (Week 4)
 
 ## Task playbooks (skills)
 
