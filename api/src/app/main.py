@@ -1,0 +1,45 @@
+"""FastAPI application entrypoint."""
+
+import uuid
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+
+from app.core.config import get_settings
+from app.core.errors import DomainError, ErrorResponse
+from app.core.logging import configure_logging
+
+
+class HealthResponse(BaseModel):
+    """Health check payload."""
+
+    status: str
+
+
+def create_app() -> FastAPI:
+    """Build and configure the FastAPI application."""
+    settings = get_settings()
+    configure_logging(settings.log_level)
+
+    application = FastAPI(title="AI Data Analyst API", version="0.1.0")
+
+    @application.exception_handler(DomainError)
+    async def handle_domain_error(request: Request, exc: DomainError) -> JSONResponse:
+        request_id = request.headers.get("x-request-id") or str(uuid.uuid4())
+        body = ErrorResponse(
+            code=exc.code,
+            message=exc.message,
+            details=exc.details,
+            request_id=request_id,
+        )
+        return JSONResponse(status_code=exc.status_code, content=body.model_dump())
+
+    @application.get("/health", response_model=HealthResponse, tags=["system"])
+    async def health() -> HealthResponse:
+        return HealthResponse(status="ok")
+
+    return application
+
+
+app = create_app()
