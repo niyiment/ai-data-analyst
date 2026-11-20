@@ -49,3 +49,22 @@
 - **Contrast:** jsdom cannot compute colour contrast, so the axe contrast rule does not run in tests. It was checked manually instead: `#64748b` on white is about 4.8:1, and `#94a3b8` on `#0b1220` is about 7.6:1.
 - **Not covered by tests:** pages other than the shell and the AI Analyst panel. Their headings changed (CardTitle now renders `h2`), but they have no component tests.
 - **Found but out of scope:** the UI refresh dropped chart rendering (`ChartRenderer` is unused). The plan-stage skip for simple questions is not implemented.
+
+## Addendum: gaps closed (2026-11-20)
+
+| Gap | RED evidence | GREEN commit | Result |
+| --- | --- | --- | --- |
+| Live PostgreSQL unverified | n/a (verification) | `d4ed131` | Applied `0004`/`0005`; 38 integration tests passed (33 references as `analyst_ro`, known answers, repository round trip) |
+| Charts never wired end to end | pytest 3 failed (no `chart_spec`); vitest 1 failed (no figure) | `d3259c4` | Validated chart spec returned and rendered as a captioned figure next to the table |
+| Plan stage never skipped | ImportError `should_skip_plan`; path tests failed | `3040405`, `eab14a1` | Simple single-table questions take one LLM call; `accuracy_by_path`; `retail_orders` set covers the direct path |
+| Token usage reported as 0 | ModuleNotFoundError `app.llm.usage` | `6b4c24e` | Ollama, Claude, and Gemini record usage; per-question tokens |
+| Eval request timeout risk | ImportError `get_eval_job`; vitest 2 failed (no status/alert) | `e889dfa`, `47e0fa3` | 202 + background run with saved progress; UI polls |
+| Orphaned running runs | 1 failed (stayed `running`) | `26921ad` | Reported as interrupted after 60 min |
+| Accessibility tests limited to two components | vitest 1 failed (ReportsView `heading-order`) | `4da0f88` | axe on every page component (23, then 25 tests) |
+| Web coverage unmeasured | n/a | `f4d7081` | 84.1% statements, 77.1% branches (workspace integration test fakes only `fetch`) |
+| Integration tests skipped in CI | n/a | `7139d9c` | CI PostgreSQL service; rehearsed: `0001`→`0006` from empty, 262 passed with 0 skipped, downgrade/upgrade round trip |
+| No ADR for providers or background runs | n/a | `5168c29` | ADR-0013 and ADR-0014 (Proposed) |
+
+**Live evaluation (local `ollama:llama3.2`):** `retail_orders` completed at 38.5% (26/26, all on the direct path, tokens recorded). `retail_sales` was stopped at 11/33 (27.3% so far) because the machine ran low on memory. That stopped run exposed the orphaned-run gap fixed in `26921ad`.
+
+**Final checks:** pytest 264 passed; vitest 25 passed; ruff, mypy, eslint, tsc, prettier, `check_limits`, and `check_layering` all clean.

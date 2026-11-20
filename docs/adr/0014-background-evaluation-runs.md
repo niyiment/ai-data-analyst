@@ -18,5 +18,5 @@ ADR-0009 makes evaluation a first-class feature. A golden-set run makes one or t
 ## Consequences
 
 - Requests return quickly, and progress is visible and survives page reloads.
-- Jobs run inside the API process. A restart or redeploy during a run leaves it `running` forever. A durable queue or worker is out of scope for the free tier. If this happens in practice, add a staleness rule (for example, mark runs older than N minutes as `failed`).
+- Jobs run inside the API process, so a restart, redeploy, or killed process can lose a run partway. A durable queue or worker is out of scope for the free tier. Instead, `get_run` reports a run still `running` after 60 minutes as `failed` ("Evaluation interrupted before finishing.") and keeps its partial results. This rule was added after a live run was killed at 11 of 33 questions.
 - Evaluation calls share the API process and the global LLM quota with user questions. The per-IP limit on starting runs (5 per minute) stays in place.
