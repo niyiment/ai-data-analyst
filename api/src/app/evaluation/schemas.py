@@ -25,6 +25,7 @@ class GoldenQuestion(BaseModel):
     category: str
     difficulty: str
     order_sensitive: bool = False
+    expects_clarification: bool = False
 
 
 class GoldenSet(BaseModel):
@@ -33,7 +34,13 @@ class GoldenSet(BaseModel):
     name: str
     demo_schema: str
     description: str
+    schema_summary: str = ""
+    table_names: list[str] = Field(default_factory=list)
     questions: list[GoldenQuestion]
+
+    def allowed_tables(self) -> frozenset[str]:
+        """Tables the validator may reference; defaults to a table named after the set."""
+        return frozenset(self.table_names or [self.name])
 
 
 class GoldenSetSummary(BaseModel):
