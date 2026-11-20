@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from app.core.errors import QueryTimeout
 from app.evaluation.runner import LlmEvalRunner
 from app.evaluation.schemas import EvalOutcome, GoldenQuestion, GoldenSet
+from app.llm.usage import record_usage
 from app.query.executor import ExecutionResult
 from app.query.schemas import QueryPlan, SqlGenerationOutput
 
@@ -174,3 +175,25 @@ async def test_simple_single_table_question_skips_the_plan_stage() -> None:
     assert result.outcome == EvalOutcome.CORRECT
     assert result.plan_skipped is True
     assert llm.calls == 1
+
+
+class MeteredLLM(FakeLLM):
+    """FakeLLM that reports 100 input / 20 output tokens per call."""
+
+    async def generate_structured(
+        self, *, system_prompt: str, user_prompt: str, response_model: type[T]
+    ) -> T:
+        record_usage(100, 20)
+        return await super().generate_structured(
+            system_prompt=system_prompt, user_prompt=user_prompt, response_model=response_model
+        )
+
+
+@pytest.mark.asyncio
+async def test_runner_reports_tokens_used_per_question() -> None:
+    llm = MeteredLLM(sql="SELECT region, SUM(revenue) AS total FROM sales GROUP BY 1")
+    runner = LlmEvalRunner(_set(), llm=llm, executor=FakeExecutor({"sales": ROWS}))
+
+    result = await runner.execute_question("q1")
+
+    assert (result.tokens_in, result.tokens_out) == (200, 40)
