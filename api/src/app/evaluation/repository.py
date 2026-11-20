@@ -27,6 +27,8 @@ def run_to_model(run: EvalRunDetail) -> EvalRunModel:
         started_at=run.started_at,
         finished_at=run.finished_at,
         accuracy=run.accuracy,
+        status=run.status,
+        error=run.error,
         detail=run.model_dump(mode="json"),
     )
 
@@ -59,8 +61,8 @@ class SqlEvalRepository:
         self._db = db
 
     async def save_run(self, run: EvalRunDetail) -> EvalRunDetail:
-        """Insert the run and commit."""
-        self._db.add(run_to_model(run))
+        """Insert or update the run (progress is saved repeatedly) and commit."""
+        await self._db.merge(run_to_model(run))
         await self._db.commit()
         return run
 

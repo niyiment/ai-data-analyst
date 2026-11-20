@@ -1,19 +1,18 @@
-"""Evaluation service orchestrating golden-set runs and metric aggregation."""
+"""Evaluation service: start golden-set runs and execute them with saved progress."""
 
-from collections import Counter
 from collections.abc import Callable
 from datetime import UTC, datetime
-from math import ceil
 from typing import Protocol
 from uuid import UUID, uuid4
 
 from app.core.errors import NotFound
 from app.evaluation.golden_sets import GOLDEN_SETS
+from app.evaluation.metrics import RunHeader, build_run_detail
 from app.evaluation.repository import EvalRepository
 from app.evaluation.schemas import (
-    EvalOutcome,
     EvalQuestionResult,
     EvalRunDetail,
+    GoldenQuestion,
     GoldenSet,
     GoldenSetSummary,
     QuestionEvalExecution,
@@ -29,12 +28,20 @@ class EvalRunner(Protocol):
 RunnerFactory = Callable[[GoldenSet], EvalRunner]
 
 
-def _percentile(values: list[int], pct: float) -> int:
-    if not values:
-        return 0
-    ordered = sorted(values)
-    idx = max(0, min(len(ordered) - 1, ceil(pct * len(ordered)) - 1))
-    return ordered[idx]
+def _result(q: GoldenQuestion, res: QuestionEvalExecution) -> EvalQuestionResult:
+    return EvalQuestionResult(
+        question_id=q.id,
+        question=q.question,
+        category=q.category,
+        difficulty=q.difficulty,
+        outcome=res.outcome,
+        generated_sql=res.generated_sql,
+        latency_ms=res.latency_ms,
+        tokens_in=res.tokens_in,
+        tokens_out=res.tokens_out,
+        failure_category=res.failure_category,
+        plan_skipped=res.plan_skipped,
+    )
 
 
 class EvaluationService:
@@ -78,81 +85,58 @@ class EvaluationService:
             for s in GOLDEN_SETS.values()
         ]
 
-    async def run_evaluation(self, set_name: str) -> EvalRunDetail:
-        """Execute all questions in a golden set and persist the aggregated run."""
-        golden_set = GOLDEN_SETS.get(set_name)
-        if golden_set is None:
-            raise NotFound(f"Evaluation set '{set_name}' not found.")
+    async def start_run(self, set_name: str) -> EvalRunDetail:
+        """Persist a 'running' run for set_name; execute it later with execute_run."""
+        golden_set = _golden_set(set_name)
+        header = RunHeader(
+            id=uuid4(),
+            set_name=set_name,
+            model=self._model_name,
+            prompt_version=self._prompt_version,
+            started_at=datetime.now(UTC),
+            total_questions=len(golden_set.questions),
+        )
+        run = build_run_detail(header, [], status="running", finished_at=None)
+        return await self._repo.save_run(run)
 
-        runner = self.build_runner(golden_set)
-        started_at = datetime.now(UTC)
+    async def execute_run(self, run: EvalRunDetail) -> EvalRunDetail:
+        """Answer every question, saving progress after each; never raises."""
+        header = RunHeader(
+            run.id, run.set_name, run.model, run.prompt_version, run.started_at,
+            run.total_questions,
+        )  # fmt: skip
         results: list[EvalQuestionResult] = []
-        for q in golden_set.questions:
-            exec_res = await runner.execute_question(q.id)
-            results.append(
-                EvalQuestionResult(
-                    question_id=q.id,
-                    question=q.question,
-                    category=q.category,
-                    difficulty=q.difficulty,
-                    outcome=exec_res.outcome,
-                    generated_sql=exec_res.generated_sql,
-                    latency_ms=exec_res.latency_ms,
-                    tokens_in=exec_res.tokens_in,
-                    tokens_out=exec_res.tokens_out,
-                    failure_category=exec_res.failure_category,
-                    plan_skipped=exec_res.plan_skipped,
+        try:
+            golden_set = _golden_set(run.set_name)
+            runner = self.build_runner(golden_set)
+            for q in golden_set.questions:
+                results.append(_result(q, await runner.execute_question(q.id)))
+                await self._repo.save_run(
+                    build_run_detail(header, results, status="running", finished_at=None)
                 )
-            )
-        return await self._repo.save_run(self._build_detail(set_name, started_at, results))
+        except Exception as exc:  # recorded on the run; details stay out of the response
+            failed = build_run_detail(
+                header, results, status="failed", finished_at=datetime.now(UTC),
+                error=f"Evaluation failed ({type(exc).__name__}).",
+            )  # fmt: skip
+            return await self._repo.save_run(failed)
+        done = build_run_detail(header, results, status="completed", finished_at=datetime.now(UTC))
+        return await self._repo.save_run(done)
+
+    async def run_evaluation(self, set_name: str) -> EvalRunDetail:
+        """Start and execute a run in one call (used by tests and scripts)."""
+        return await self.execute_run(await self.start_run(set_name))
 
     async def get_run(self, run_id: UUID) -> EvalRunDetail:
-        """Fetch a previously completed evaluation run."""
+        """Fetch a run (running, completed, or failed)."""
         run = await self._repo.get_run(run_id)
         if run is None:
             raise NotFound("Evaluation run not found.")
         return run
 
-    def _build_detail(
-        self,
-        set_name: str,
-        started_at: datetime,
-        results: list[EvalQuestionResult],
-    ) -> EvalRunDetail:
-        total = len(results)
-        correct = sum(1 for r in results if r.outcome == EvalOutcome.CORRECT)
-        rejected = sum(1 for r in results if r.outcome == EvalOutcome.REJECTED)
-        latencies = [r.latency_ms for r in results]
-        failures = Counter(r.failure_category for r in results if r.failure_category)
 
-        return EvalRunDetail(
-            id=uuid4(),
-            set_name=set_name,
-            prompt_version=self._prompt_version,
-            model=self._model_name,
-            started_at=started_at,
-            finished_at=datetime.now(UTC),
-            total_questions=total,
-            correct_count=correct,
-            rejected_count=rejected,
-            accuracy=correct / total if total else 0.0,
-            rejection_rate=rejected / total if total else 0.0,
-            p50_latency_ms=_percentile(latencies, 0.50),
-            p95_latency_ms=_percentile(latencies, 0.95),
-            total_tokens_in=sum(r.tokens_in for r in results),
-            total_tokens_out=sum(r.tokens_out for r in results),
-            failure_categories=dict(failures),
-            accuracy_by_path=_accuracy_by_path(results),
-            results=results,
-        )
-
-
-def _accuracy_by_path(results: list[EvalQuestionResult]) -> dict[str, float]:
-    """Accuracy for 'direct' (plan skipped) and 'planned' questions, for paths that ran."""
-    by_path: dict[str, list[EvalQuestionResult]] = {}
-    for r in results:
-        by_path.setdefault("direct" if r.plan_skipped else "planned", []).append(r)
-    return {
-        path: sum(r.outcome == EvalOutcome.CORRECT for r in items) / len(items)
-        for path, items in by_path.items()
-    }
+def _golden_set(set_name: str) -> GoldenSet:
+    golden_set = GOLDEN_SETS.get(set_name)
+    if golden_set is None:
+        raise NotFound(f"Evaluation set '{set_name}' not found.")
+    return golden_set

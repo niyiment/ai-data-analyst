@@ -7,9 +7,9 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from app.evaluation.dependencies import get_eval_service
+from app.evaluation.dependencies import get_eval_job, get_eval_service
 from app.evaluation.repository import InMemoryEvalRepository
-from app.evaluation.schemas import EvalOutcome, QuestionEvalExecution
+from app.evaluation.schemas import EvalOutcome, EvalRunDetail, QuestionEvalExecution
 from app.evaluation.service import EvaluationService
 from app.main import create_app
 
@@ -30,6 +30,11 @@ def app() -> Iterator[FastAPI]:
         model_name="fake:model",
     )
     application.dependency_overrides[get_eval_service] = lambda: service
+
+    async def job(run: EvalRunDetail) -> None:
+        await service.execute_run(run)
+
+    application.dependency_overrides[get_eval_job] = lambda: job
     yield application
 
 
@@ -41,15 +46,15 @@ async def test_eval_sets_and_run_lifecycle(app: FastAPI) -> None:
         assert any(s["name"] == "retail_sales" for s in sets_resp.json())
 
         run_resp = await client.post("/api/v1/eval/runs", json={"set_name": "retail_sales"})
-        assert run_resp.status_code == 201
+        assert run_resp.status_code == 202
         run = run_resp.json()
         assert run["set_name"] == "retail_sales"
         assert run["model"] == "fake:model"
-        assert run["accuracy"] == 1.0
 
         get_resp = await client.get(f"/api/v1/eval/runs/{run['id']}")
         assert get_resp.status_code == 200
-        assert get_resp.json()["id"] == run["id"]
+        assert get_resp.json()["status"] == "completed"
+        assert get_resp.json()["accuracy"] == 1.0
 
 
 @pytest.mark.asyncio

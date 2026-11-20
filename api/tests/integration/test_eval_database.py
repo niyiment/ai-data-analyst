@@ -75,3 +75,24 @@ async def test_sql_eval_repository_round_trips_a_run() -> None:
             assert await SqlEvalRepository(db).get_run(run.id) == run
     finally:
         await engine.dispose()
+
+
+async def test_sql_eval_repository_upserts_progress_until_completed() -> None:
+    engine = create_async_engine(get_settings().database_url_app)
+    now = datetime.now(UTC)
+    running = EvalRunDetail(
+        id=uuid4(), set_name="retail_sales", prompt_version="v1", model="test:integration",
+        started_at=now, status="running", total_questions=2, correct_count=0, rejected_count=0,
+        accuracy=0.0, rejection_rate=0.0, p50_latency_ms=0, p95_latency_ms=0,
+        total_tokens_in=0, total_tokens_out=0, failure_categories={}, results=[],
+    )  # fmt: skip
+    completed = running.model_copy(update={"status": "completed", "finished_at": now})
+    try:
+        for version in (running, completed):
+            async with async_sessionmaker(engine, expire_on_commit=False)() as db:
+                await SqlEvalRepository(db).save_run(version)
+        async with async_sessionmaker(engine, expire_on_commit=False)() as db:
+            stored = await SqlEvalRepository(db).get_run(running.id)
+        assert stored is not None and stored.status == "completed"
+    finally:
+        await engine.dispose()

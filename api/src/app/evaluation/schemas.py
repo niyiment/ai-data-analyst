@@ -2,9 +2,12 @@
 
 from datetime import datetime
 from enum import StrEnum
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
+
+RunStatus = Literal["running", "completed", "failed"]
 
 
 class EvalOutcome(StrEnum):
@@ -94,7 +97,9 @@ class EvalRunDetail(BaseModel):
     prompt_version: str
     model: str
     started_at: datetime
-    finished_at: datetime
+    finished_at: datetime | None = None
+    status: RunStatus = "completed"
+    error: str | None = None
     total_questions: int
     correct_count: int
     rejected_count: int
