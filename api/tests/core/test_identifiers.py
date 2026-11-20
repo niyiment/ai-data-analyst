@@ -1,4 +1,4 @@
-"""Identifier sanitisation is an injection boundary for user-supplied names (docs/DATABASE.md 6.5)."""
+"""Identifier sanitisation: an injection boundary for user-supplied names (DATABASE.md 6.5)."""
 
 import re
 
