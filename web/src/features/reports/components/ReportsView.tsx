@@ -35,7 +35,7 @@ export function ReportsView({ reports, onGoToAnalyst }: ReportsViewProps) {
             <Card key={report.id}>
               <CardContent className="flex flex-col justify-between gap-4 p-5 sm:flex-row sm:items-center">
                 <div className="space-y-1">
-                  <h3 className="text-sm font-semibold text-foreground">{report.title}</h3>
+                  <h2 className="text-sm font-semibold text-foreground">{report.title}</h2>
                   <p className="text-xs text-muted-foreground">
                     Pinned query run with validated SQL, results, and insights.
                   </p>
