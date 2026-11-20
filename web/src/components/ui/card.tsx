@@ -17,9 +17,14 @@ export function CardHeader({ className, ...props }: HTMLAttributes<HTMLDivElemen
   return <div className={cn("flex flex-col space-y-1 p-5", className)} {...props} />;
 }
 
-export function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
+interface CardTitleProps extends HTMLAttributes<HTMLHeadingElement> {
+  /** Heading level. Cards sit directly under a page's h1, so h2 keeps the outline valid. */
+  as?: "h2" | "h3" | "h4";
+}
+
+export function CardTitle({ className, as: Heading = "h2", ...props }: CardTitleProps) {
   return (
-    <h3
+    <Heading
       className={cn("text-sm font-semibold leading-none tracking-tight text-foreground", className)}
       {...props}
     />

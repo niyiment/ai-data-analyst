@@ -9,11 +9,11 @@ const { askQuestion } = vi.hoisted(() => ({ askQuestion: vi.fn() }));
 vi.mock("../api/query-api", () => ({ askQuestion }));
 
 function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((r) => {
-    resolve = r;
+  let reject!: (reason: Error) => void;
+  const promise = new Promise<T>((_resolve, r) => {
+    reject = r;
   });
-  return { promise, resolve };
+  return { promise, reject };
 }
 
 describe("QueryPanel accessibility", () => {
@@ -44,7 +44,7 @@ describe("QueryPanel accessibility", () => {
     expect(screen.getByRole("log", { name: /conversation/i })).toHaveAttribute("aria-busy", "true");
     expect(screen.getByRole("button", { name: /running/i })).toBeDisabled();
 
-    pending.resolve({} as QueryResult);
+    pending.reject(new Error("network down"));
     await waitFor(() =>
       expect(screen.getByRole("log", { name: /conversation/i })).toHaveAttribute(
         "aria-busy",

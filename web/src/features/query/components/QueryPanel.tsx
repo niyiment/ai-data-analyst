@@ -117,7 +117,12 @@ export function QueryPanel({
             <Badge variant="success">Connected</Badge>
           </CardHeader>
 
-          <CardContent className="flex-1 space-y-5 overflow-y-auto p-5">
+          <CardContent
+            role="log"
+            aria-label="Conversation"
+            aria-busy={busy}
+            className="flex-1 space-y-5 overflow-y-auto p-5"
+          >
             <div className="flex items-start gap-3">
               <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <Sparkles className="size-3.5" />
@@ -162,7 +167,7 @@ export function QueryPanel({
                 disabled={busy}
                 aria-label="Natural-language question"
               />
-              <Button type="submit" disabled={busy || question.trim().length < 2} aria-label="Ask">
+              <Button type="submit" disabled={busy || question.trim().length < 2}>
                 {busy ? "Running…" : "Ask"}
                 <ArrowRight className="size-4" />
               </Button>
