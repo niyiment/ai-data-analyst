@@ -68,13 +68,13 @@ ai-data-analyst/
 ├── api/                 # FastAPI backend (feature-based modules, migrations, prompts, tests)
 ├── web/                 # Next.js frontend (thin app/ pages, features/<name>/ modules)
 ├── docs/                # Engineering documentation & ADRs
-│   └── adr/             # Architecture Decision Records (0000–0012)
+│   └── adr/             # Architecture Decision Records (0000–0014)
 ├── .claude/skills/      # Task-specific AI coding playbooks
 ├── AGENTS.md            # Root rules for AI coding assistants
 └── README.md
 ```
 
-> **Status:** Weeks 0–4 are implemented: sessions and ingestion, the safe query core, charts, insights, reports, LLM-backed evaluation against a persistent demo schema (33 golden questions), per-session question limits, a global LLM quota guard, and an accessibility pass. Remaining work is Week 5 (production deploy, scheduled cleanup workflow, published accuracy results). See [docs/ROADMAP.md](docs/ROADMAP.md).
+> **Status:** Weeks 0–4 are implemented: sessions and ingestion, the safe query core, charts, insights, reports, validated chart recommendations, plan-stage skipping for simple single-table questions, LLM-backed background evaluation against a persistent demo schema (two golden sets, 59 questions, accuracy tracked per path and tokens per question), per-session question limits, a global LLM quota guard, and an accessibility pass with axe checks on every page. Remaining work is Week 5 (production deploy, scheduled cleanup workflow, published accuracy results). See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ---
 
@@ -152,6 +152,8 @@ cd api
 uv run uvicorn app.main:app --reload
 ```
 
+> **Windows:** psycopg's async mode cannot use Windows' default Proactor event loop. `--reload` runs the server in a subprocess on a selector loop, so the command above works. Without `--reload`, use `uv run python -m app`, which starts uvicorn on a selector loop.
+
 In terminal 2 (Frontend — `http://localhost:3000`):
 
 ```bash
@@ -222,7 +224,7 @@ See [docs/TESTING.md](docs/TESTING.md) for details.
 | --- | --- |
 | [docs/PRD.md](docs/PRD.md) | Product requirements, non-goals, limits, success metrics, and risks |
 | [docs/USER_STORIES.md](docs/USER_STORIES.md) | User stories and acceptance criteria across Epics A–F |
-| [docs/adr/](docs/adr/) | Architecture Decision Records (`0001`–`0012`) and template (`0000`) |
+| [docs/adr/](docs/adr/) | Architecture Decision Records (`0001`–`0014`) and template (`0000`) |
 | [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md) | Layering rules, file/function size limits, conventions, and Definition of Done |
 | [docs/DATABASE.md](docs/DATABASE.md) | Schemas, roles (`app_owner`, `app_rw`, `analyst_ro`), tables, indexes, and cleanup |
 | [docs/API.md](docs/API.md) | `/api/v1` endpoints, standard error shape, and ownership rules |
@@ -242,5 +244,5 @@ See [docs/TESTING.md](docs/TESTING.md) for details.
 | **1** | Sessions & ingestion: cookie sessions, upload, schema inference, per-dataset schemas, cleanup | Done |
 | **2** | Safe query core: AST validator (100% adversarial block), read-only executor, plan/SQL pipeline | Done |
 | **3** | Charts, insights & reports: ECharts spec validation, on-demand insights, PDF/HTML export | Done |
-| **4** | Evaluation & hardening: golden sets, eval UI, rate limits, quota guard, accessibility | Done (live-database verification pending) |
+| **4** | Evaluation & hardening: golden sets, eval UI, rate limits, quota guard, accessibility | Done |
 | **5** | Deploy & polish: Vercel + Render + Neon production deploy, scheduled cleanup, demo | Not started |

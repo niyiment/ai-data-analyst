@@ -114,13 +114,15 @@ Golden sets (questions, reference SQL, category, difficulty, `order_sensitive`, 
 
 | Table | Key columns |
 | --- | --- |
-| `app.eval_runs` (migration `0004`) | `id`, `set_name`, `model` (`provider:model`), `prompt_version`, `started_at`, `finished_at`, `accuracy`, `detail` (JSON: aggregate metrics and per-question results with `outcome` `correct`/`wrong`/`rejected`/`error`, `generated_sql`, `latency_ms`, `failure_category`) |
+| `app.eval_runs` (migrations `0004`, `0006`) | `id`, `set_name`, `model` (`provider:model`), `prompt_version`, `started_at`, `finished_at` (null while running), `status` (`running`/`completed`/`failed`), `error`, `accuracy`, `detail` (JSON: aggregate metrics and per-question results with `outcome` `correct`/`wrong`/`rejected`/`error`, `generated_sql`, `latency_ms`, `failure_category`) |
 
 Demo datasets live in persistent `demo_<name>` schemas created by migration, with `USAGE`/`SELECT` granted to `analyst_ro`:
 
 | Schema | Tables | Created by |
 | --- | --- | --- |
 | `demo_retail_sales` | `retail_sales` (40 orders, Jan–Mar 2026), `regions` (manager, revenue target) | migration `0005` (frozen seed data; change only via a new migration) |
+
+Two golden sets run against it: `retail_sales` (33 questions, both tables, planned path) and `retail_orders` (26 single-table questions, direct path).
 
 Evaluation data holds no user data and is never touched by cleanup.
 
