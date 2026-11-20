@@ -6,13 +6,14 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Request, status
 
 from app.core.rate_limit import RateLimiter
+from app.evaluation.dependencies import get_eval_service
 from app.evaluation.schemas import EvalRunCreate, EvalRunDetail, GoldenSetSummary
-from app.evaluation.service import EvaluationService, get_default_eval_service
+from app.evaluation.service import EvaluationService
 
 router = APIRouter(prefix="/api/v1/eval", tags=["evaluation"])
 
 _eval_rate_limiter = RateLimiter(limit=5, window_seconds=60)
-EvalServiceDep = Annotated[EvaluationService, Depends(get_default_eval_service)]
+EvalServiceDep = Annotated[EvaluationService, Depends(get_eval_service)]
 
 
 @router.get("/sets", response_model=list[GoldenSetSummary])
@@ -36,4 +37,4 @@ async def start_eval_run(
 @router.get("/runs/{run_id}", response_model=EvalRunDetail)
 async def get_eval_run(run_id: UUID, service: EvalServiceDep) -> EvalRunDetail:
     """Retrieve results for a completed evaluation run."""
-    return service.get_run(run_id)
+    return await service.get_run(run_id)

@@ -49,6 +49,20 @@ def build_llm_client(
     )
 
 
+def describe_llm(
+    settings: Settings, provider: str | None = None, model: str | None = None
+) -> str:
+    """Return a 'provider:model' label for reporting which model produced a result."""
+    chosen = (provider or settings.llm_provider or "ollama").strip().lower()
+    defaults = {
+        "ollama": settings.ollama_model,
+        "ollama_cloud": settings.ollama_cloud_model,
+        "gemini": settings.gemini_model,
+        "claude": settings.claude_model,
+    }
+    return f"{chosen}:{(model or defaults.get(chosen, 'unknown')).strip()}"
+
+
 def get_llm_client(
     settings: Annotated[Settings, Depends(get_settings)],
     x_llm_provider: Annotated[str | None, Header()] = None,

@@ -1,6 +1,7 @@
 """Evaluation service orchestrating golden-set runs and metric aggregation."""
 
 from collections import Counter
+from collections.abc import Callable
 from datetime import UTC, datetime
 from math import ceil
 from typing import Protocol
@@ -8,17 +9,15 @@ from uuid import UUID, uuid4
 
 from app.core.errors import NotFound
 from app.evaluation.golden_sets import GOLDEN_SETS
-from app.evaluation.repository import InMemoryEvalRepository
+from app.evaluation.repository import EvalRepository
 from app.evaluation.schemas import (
     EvalOutcome,
     EvalQuestionResult,
     EvalRunDetail,
-    GoldenQuestion,
+    GoldenSet,
     GoldenSetSummary,
     QuestionEvalExecution,
 )
-from app.query.validator.pipeline import validate_sql
-from app.query.validator.types import ValidationContext
 
 
 class EvalRunner(Protocol):
@@ -27,35 +26,7 @@ class EvalRunner(Protocol):
     async def execute_question(self, question_id: str) -> QuestionEvalExecution: ...
 
 
-class ReferenceValidatorRunner:
-    """Default offline runner validating golden reference SQL through the AST pipeline."""
-
-    def __init__(
-        self,
-        questions: list[GoldenQuestion],
-        schema_name: str,
-        allowed_tables: frozenset[str],
-    ) -> None:
-        self._by_id = {q.id: q for q in questions}
-        self._context = ValidationContext(
-            allowed_schema=schema_name, allowed_tables=allowed_tables
-        )
-
-    async def execute_question(self, question_id: str) -> QuestionEvalExecution:
-        q = self._by_id[question_id]
-        result = validate_sql(q.reference_sql, self._context)
-        if not result.is_valid:
-            return QuestionEvalExecution(
-                outcome=EvalOutcome.REJECTED,
-                generated_sql=q.reference_sql,
-                latency_ms=15,
-                failure_category="validator_rejected",
-            )
-        return QuestionEvalExecution(
-            outcome=EvalOutcome.CORRECT,
-            generated_sql=q.reference_sql,
-            latency_ms=25,
-        )
+RunnerFactory = Callable[[GoldenSet], EvalRunner]
 
 
 def _percentile(values: list[int], pct: float) -> int:
@@ -71,15 +42,29 @@ class EvaluationService:
 
     def __init__(
         self,
-        repo: InMemoryEvalRepository,
-        runner: EvalRunner | None = None,
-        model_name: str = "reference-validator",
+        repo: EvalRepository,
+        runner_factory: RunnerFactory,
+        model_name: str = "unknown",
         prompt_version: str = "v1",
     ) -> None:
         self._repo = repo
-        self._runner = runner
+        self._runner_factory = runner_factory
         self._model_name = model_name
         self._prompt_version = prompt_version
+
+    @property
+    def repository(self) -> EvalRepository:
+        """The run store this service writes to."""
+        return self._repo
+
+    @property
+    def model_name(self) -> str:
+        """Label of the model under evaluation, e.g. 'gemini:gemini-2.5-flash'."""
+        return self._model_name
+
+    def build_runner(self, golden_set: GoldenSet) -> EvalRunner:
+        """Create the runner that answers one golden set."""
+        return self._runner_factory(golden_set)
 
     def list_sets(self) -> list[GoldenSetSummary]:
         """Return summaries of all registered golden sets."""
@@ -99,11 +84,7 @@ class EvaluationService:
         if golden_set is None:
             raise NotFound(f"Evaluation set '{set_name}' not found.")
 
-        runner = self._runner or ReferenceValidatorRunner(
-            golden_set.questions,
-            schema_name=golden_set.demo_schema,
-            allowed_tables=frozenset({golden_set.name}),
-        )
+        runner = self.build_runner(golden_set)
         started_at = datetime.now(UTC)
         results: list[EvalQuestionResult] = []
         for q in golden_set.questions:
@@ -122,11 +103,11 @@ class EvaluationService:
                     failure_category=exec_res.failure_category,
                 )
             )
-        return self._repo.save_run(self._build_detail(set_name, started_at, results))
+        return await self._repo.save_run(self._build_detail(set_name, started_at, results))
 
-    def get_run(self, run_id: UUID) -> EvalRunDetail:
+    async def get_run(self, run_id: UUID) -> EvalRunDetail:
         """Fetch a previously completed evaluation run."""
-        run = self._repo.get_run(run_id)
+        run = await self._repo.get_run(run_id)
         if run is None:
             raise NotFound("Evaluation run not found.")
         return run
@@ -163,10 +144,3 @@ class EvaluationService:
             results=results,
         )
 
-
-_default_repo = InMemoryEvalRepository()
-
-
-def get_default_eval_service() -> EvaluationService:
-    """Return an EvaluationService backed by the default repository."""
-    return EvaluationService(repo=_default_repo)
