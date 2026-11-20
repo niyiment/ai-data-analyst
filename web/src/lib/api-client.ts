@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { getLlmHeaders } from "./llm-config";
 
 export const apiErrorSchema = z.object({
   code: z.string(),
@@ -31,6 +32,7 @@ export async function apiRequest<T>(
     ...init,
     headers: {
       "Content-Type": "application/json",
+      ...getLlmHeaders(),
       ...init?.headers,
     },
   });

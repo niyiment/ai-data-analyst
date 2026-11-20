@@ -25,6 +25,22 @@ jobs:
     defaults:
       run:
         working-directory: api
+    services:
+      # Same image, port, and throwaway local-dev credentials as docker-compose.yml,
+      # so integration tests run against real migrations and analyst_ro grants.
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ai_data_analyst
+          POSTGRES_USER: app_owner
+          POSTGRES_PASSWORD: local_owner_password
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U app_owner -d ai_data_analyst"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL_OWNER: postgresql+psycopg://app_owner:local_owner_password@localhost:5433/ai_data_analyst
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
@@ -38,7 +54,13 @@ jobs:
         run: uv run ruff check .
       - name: Type check
         run: uv run mypy src tests
-      - name: Test
+      - name: Prepare database (roles + migrations)
+        env:
+          PGPASSWORD: local_owner_password
+        run: |
+          psql -h localhost -p 5433 -U app_owner -d ai_data_analyst -v ON_ERROR_STOP=1 -f ../infra/postgres/init-roles.sql
+          uv run alembic upgrade head
+      - name: Test (unit + PostgreSQL integration)
         run: uv run pytest
 
   web:
@@ -65,5 +87,7 @@ jobs:
         run: pnpm run lint
       - name: Type check
         run: pnpm run typecheck
+      - name: Test
+        run: pnpm test
       - name: Build
         run: pnpm run build

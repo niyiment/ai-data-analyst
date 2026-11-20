@@ -29,7 +29,7 @@ flowchart LR
     subgraph API_Layers["FastAPI Feature Modules"]
         Router["Routers (HTTP only)"] --> Service["Services (Use cases)"]
         Service --> Repo["Repositories (Metadata SQL)"]
-        Service --> LLM["LLMClient Port (Gemini)"]
+        Service --> LLM["LLMClient Port (Ollama / Gemini / Claude)"]
         Service --> Validator["SQLGlot AST Validator"]
         Validator --> Executor["Read-Only Executor"]
     end
@@ -43,7 +43,7 @@ flowchart LR
 ### Core Architectural Principles
 
 - **Strict layering:** `router -> service -> repository`. Routers handle HTTP only; services orchestrate use cases; repositories are the only layer touching metadata SQL.
-- **Provider independence:** All LLM calls go through an `LLMClient` interface with versioned prompt templates loaded from files.
+- **Provider independence:** All LLM calls go through an `LLMClient` interface with versioned prompt templates loaded from files. Adapters exist for Ollama (local or cloud), Gemini, and Claude; the default comes from `LLM_PROVIDER`, and a request can override provider, model, and API key with the `X-LLM-Provider`, `X-LLM-Model`, and `X-LLM-Api-Key` headers.
 - **Same-origin cookies:** Next.js proxies `/api/*` to the FastAPI backend so cookies remain first-party across free-tier hosts.
 - **Two-layer data expiry:** Lazy expiry on access plus a scheduled GitHub Actions cleanup job calling an authenticated, idempotent cleanup endpoint.
 
@@ -56,7 +56,7 @@ flowchart LR
 | **Frontend** | Next.js (TypeScript strict mode), Apache ECharts, Zod, Vitest, Playwright |
 | **Backend** | FastAPI (Python 3.12), Pydantic, SQLGlot, Alembic, `mypy` (strict), `Ruff`, `pytest` |
 | **Database** | PostgreSQL (Docker Compose locally; Neon free tier in production) |
-| **LLM** | Google Gemini behind an `LLMClient` port |
+| **LLM** | Ollama (local or cloud, default), Google Gemini, or Anthropic Claude behind an `LLMClient` port |
 | **Hosting & CI** | Vercel (web), Render (API Docker container), GitHub Actions (CI & scheduled cleanup) |
 
 ---
@@ -68,13 +68,13 @@ ai-data-analyst/
 ├── api/                 # FastAPI backend (feature-based modules, migrations, prompts, tests)
 ├── web/                 # Next.js frontend (thin app/ pages, features/<name>/ modules)
 ├── docs/                # Engineering documentation & ADRs
-│   └── adr/             # Architecture Decision Records (0000–0012)
+│   └── adr/             # Architecture Decision Records (0000–0014)
 ├── .claude/skills/      # Task-specific AI coding playbooks
 ├── AGENTS.md            # Root rules for AI coding assistants
 └── README.md
 ```
 
-> **Note:** The repository is currently at **Week 0 (Foundations)**—engineering documentation and agent playbooks are in place, and the `api/` and `web/` scaffold is next.
+> **Status:** Weeks 0–4 are implemented: sessions and ingestion, the safe query core, charts, insights, reports, validated chart recommendations, plan-stage skipping for simple single-table questions, LLM-backed background evaluation against a persistent demo schema (two golden sets, 59 questions, accuracy tracked per path and tokens per question), per-session question limits, a global LLM quota guard, and an accessibility pass with axe checks on every page. Remaining work is Week 5 (production deploy, scheduled cleanup workflow, published accuracy results). See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ---
 
@@ -100,7 +100,8 @@ See [docs/SECURITY.md](docs/SECURITY.md) for the full threat model.
 | Datasets per session | 3 |
 | Result rows returned | 1,000 |
 | Query timeout | 10 seconds |
-| Questions per session / hour | 30 |
+| Questions per session / hour | 30 (`QUESTIONS_PER_SESSION_PER_HOUR`) |
+| LLM calls per day (all sessions) | 1,000 (`LLM_DAILY_CALL_BUDGET`) |
 | Session lifetime | 24 hours |
 
 ---
@@ -110,25 +111,108 @@ See [docs/SECURITY.md](docs/SECURITY.md) for the full threat model.
 ### Prerequisites
 
 - Docker & Docker Compose
-- Python 3.12+
-- Node.js 20+
-- A Google Gemini API key
+- Python 3.12+ and [`uv`](https://docs.astral.sh/uv/)
+- Node.js 20+ and [`pnpm`](https://pnpm.io/)
+- An LLM: a local [Ollama](https://ollama.com/) install (the default), or an API key for Ollama Cloud, Gemini, or Claude
 
-### Environment Variables
+### 1. Configure environment variables
 
-Never commit secret values. Configure the following in your local `.env` files once the scaffold is generated (see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for details):
+Copy `.env.example` to `.env`, set `LLM_PROVIDER` (`ollama`, `ollama_cloud`, `gemini`, or `claude`), and fill in that provider's settings, e.g. `OLLAMA_MODEL`, `GEMINI_API_KEY`, or `ANTHROPIC_API_KEY` (never commit `.env`):
 
-- **API:** `DATABASE_URL_APP`, `DATABASE_URL_ANALYST`, `DATABASE_URL_OWNER` *(migrations only)*, `GEMINI_API_KEY`, `GEMINI_MODEL`, `SESSION_TTL_HOURS`, `CLEANUP_SECRET`, `ALLOWED_ORIGIN`, `RATE_LIMIT_*`, `MAX_UPLOAD_MB`, `MAX_ROWS`, `QUERY_TIMEOUT_SECONDS`, `LOG_LEVEL`
-- **Web:** `API_BASE_URL` (server-side only, for `/api/*` rewrites)
+```bash
+cp .env.example .env
+```
+
+### 2. Start PostgreSQL and run migrations
+
+```bash
+docker compose up -d postgres
+```
+
+Wait until the `postgres` container reports `healthy` (`docker compose ps`), then run Alembic migrations using the owner role:
+
+```bash
+# Bash / macOS / Linux
+export DATABASE_URL_OWNER="postgresql+psycopg://app_owner:local_owner_password@localhost:5433/ai_data_analyst"
+cd api && uv sync --python 3.12 && uv run alembic upgrade head
+```
+
+```powershell
+# Windows PowerShell
+$env:DATABASE_URL_OWNER = "postgresql+psycopg://app_owner:local_owner_password@localhost:5433/ai_data_analyst"
+cd api; uv sync --python 3.12; uv run alembic upgrade head
+```
+
+### 3. Run the API and Web apps
+
+In terminal 1 (Backend — `http://localhost:8000`):
+
+```bash
+cd api
+uv run uvicorn app.main:app --reload
+```
+
+> **Windows:** psycopg's async mode cannot use Windows' default Proactor event loop. `--reload` runs the server in a subprocess on a selector loop, so the command above works. Without `--reload`, use `uv run python -m app`, which starts uvicorn on a selector loop.
+
+In terminal 2 (Frontend — `http://localhost:3000`):
+
+```bash
+cd web
+pnpm install
+pnpm dev
+```
+
+*(Alternatively, run both PostgreSQL and the API container together with `docker compose up -d`.)*
+
+### 4. Verify lint, types, guardrails, and tests
+
+```bash
+# Backend
+cd api && uv run ruff check . && uv run mypy src tests && uv run pytest
+
+# Frontend
+cd web && pnpm run lint && pnpm run typecheck
+
+# Repository guardrails (file/function size limits & layering)
+python scripts/check_limits.py
+python scripts/check_layering.py
+```
+
+---
+
+## Deployment (Production)
+
+The production stack runs on free cloud tiers with zero hardcoded provider logic (see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) and [ADR-0012](docs/adr/0012-free-tier-hosting-choices.md)):
+
+| Component | Host | Notes |
+| --- | --- | --- |
+| **Database** | Neon (PostgreSQL) | Create `app_owner`, `app_rw`, and `analyst_ro` roles via `infra/postgres/init-roles.sql` |
+| **API** | Render (Docker web service) | Root directory `api/`; runs FastAPI container |
+| **Frontend** | Vercel (Next.js) | Root directory `web/`; rewrites `/api/*` to `API_BASE_URL` so cookies stay same-origin |
+| **Cleanup** | GitHub Actions | Scheduled every 30–60 min calling `POST /api/v1/internal/cleanup` with `CLEANUP_SECRET` |
+
+### Required Environment Variables
+
+- **API (Render):** `DATABASE_URL_APP` (`app_rw`), `DATABASE_URL_ANALYST` (`analyst_ro`), `LLM_PROVIDER` plus that provider's settings (`OLLAMA_CLOUD_BASE_URL` / `OLLAMA_CLOUD_API_KEY` / `OLLAMA_CLOUD_MODEL`, `GEMINI_API_KEY` / `GEMINI_MODEL`, or `ANTHROPIC_API_KEY` / `CLAUDE_MODEL`), `SESSION_TTL_HOURS`, `CLEANUP_SECRET`, `ALLOWED_ORIGIN`, `QUESTIONS_PER_SESSION_PER_HOUR`, `LLM_DAILY_CALL_BUDGET`, `MAX_UPLOAD_MB`, `MAX_ROWS`, `QUERY_TIMEOUT_SECONDS`, `LOG_LEVEL`
+- **Migrations (CI / deploy step only):** `DATABASE_URL_OWNER` (`app_owner`) — never set on the running API service
+- **Web (Vercel):** `API_BASE_URL` (server-side only, pointing to the Render API URL)
+
+### Deployment Checklist
+
+1. Provision Neon PostgreSQL and apply `infra/postgres/init-roles.sql`.
+2. Run `cd api && uv run alembic upgrade head` with `DATABASE_URL_OWNER`.
+3. Deploy `api/` to Render and verify `GET /api/v1/health`.
+4. Deploy `web/` to Vercel with `API_BASE_URL` set to the Render URL.
+5. Configure `API_BASE_URL` and `CLEANUP_SECRET` in GitHub Actions secrets for the scheduled cleanup workflow.
 
 ---
 
 ## Testing & Evaluation
 
-- **Unit & API tests:** `pytest` with fake DB/LLM adapters (backend) and `Vitest` (frontend). No unit test ever calls the live Gemini API.
+- **Unit & API tests:** `pytest` with fake DB/LLM adapters (backend) and `Vitest` + Testing Library with automated `axe` accessibility checks (frontend). No unit test ever calls a live LLM provider.
 - **Integration & security tests:** `pytest` against PostgreSQL in Docker, including an adversarial SQL suite (100% block target) and cross-session authorisation tests.
 - **End-to-end tests:** Playwright against the local stack.
-- **Evaluation:** Golden question sets (~30 questions per demo dataset) compared by *execution result* rather than SQL text, targeting at least **80% execution accuracy** (90% stretch).
+- **Evaluation:** Golden question sets (~30 questions per demo dataset) compared by *execution result* rather than SQL text, targeting at least **80% execution accuracy** (90% stretch). Run them from the Evaluation page or via `POST /api/v1/eval/runs`.
 
 See [docs/TESTING.md](docs/TESTING.md) for details.
 
@@ -140,7 +224,7 @@ See [docs/TESTING.md](docs/TESTING.md) for details.
 | --- | --- |
 | [docs/PRD.md](docs/PRD.md) | Product requirements, non-goals, limits, success metrics, and risks |
 | [docs/USER_STORIES.md](docs/USER_STORIES.md) | User stories and acceptance criteria across Epics A–F |
-| [docs/adr/](docs/adr/) | Architecture Decision Records (`0001`–`0012`) and template (`0000`) |
+| [docs/adr/](docs/adr/) | Architecture Decision Records (`0001`–`0014`) and template (`0000`) |
 | [docs/CODING_STANDARDS.md](docs/CODING_STANDARDS.md) | Layering rules, file/function size limits, conventions, and Definition of Done |
 | [docs/DATABASE.md](docs/DATABASE.md) | Schemas, roles (`app_owner`, `app_rw`, `analyst_ro`), tables, indexes, and cleanup |
 | [docs/API.md](docs/API.md) | `/api/v1` endpoints, standard error shape, and ownership rules |
@@ -154,11 +238,11 @@ See [docs/TESTING.md](docs/TESTING.md) for details.
 
 ## Roadmap
 
-| Week | Milestone |
-| --- | --- |
-| **0** | Foundations: docs, repo scaffold, CI (lint, type, size, layering), Docker Compose |
-| **1** | Sessions & ingestion: cookie sessions, upload, schema inference, per-dataset schemas, cleanup |
-| **2** | Safe query core: AST validator (100% adversarial block), read-only executor, plan/SQL pipeline |
-| **3** | Charts, insights & reports: ECharts spec validation, on-demand insights, PDF/HTML export |
-| **4** | Evaluation & hardening: golden sets, eval UI, rate limits, quota guard, accessibility |
-| **5** | Deploy & polish: Vercel + Render + Neon production deploy, scheduled cleanup, demo |
+| Week | Milestone | Status |
+| --- | --- | --- |
+| **0** | Foundations: docs, repo scaffold, CI (lint, type, size, layering), Docker Compose | Done |
+| **1** | Sessions & ingestion: cookie sessions, upload, schema inference, per-dataset schemas, cleanup | Done |
+| **2** | Safe query core: AST validator (100% adversarial block), read-only executor, plan/SQL pipeline | Done |
+| **3** | Charts, insights & reports: ECharts spec validation, on-demand insights, PDF/HTML export | Done |
+| **4** | Evaluation & hardening: golden sets, eval UI, rate limits, quota guard, accessibility | Done |
+| **5** | Deploy & polish: Vercel + Render + Neon production deploy, scheduled cleanup, demo | Not started |

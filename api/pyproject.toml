@@ -4,10 +4,17 @@ version = "0.1.0"
 description = "Backend API for AI Data Analyst"
 requires-python = ">=3.12"
 dependencies = [
+    "alembic>=1.14.0",
     "fastapi>=0.115.0",
-    "uvicorn[standard]>=0.32.0",
+    "google-genai>=1.0.0",
+    "openpyxl>=3.1.5",
+    "psycopg[binary]>=3.2.0",
     "pydantic>=2.9.0",
     "pydantic-settings>=2.6.0",
+    "python-multipart>=0.0.18",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "sqlglot>=25.0.0",
+    "uvicorn[standard]>=0.32.0",
 ]
 
 [dependency-groups]
@@ -17,6 +24,7 @@ dev = [
     "pytest>=8.3.0",
     "pytest-asyncio>=0.24.0",
     "ruff>=0.8.0",
+    "types-openpyxl>=3.1.5",
 ]
 
 [build-system]
@@ -46,8 +54,10 @@ strict = true
 warn_return_any = true
 warn_unused_configs = true
 mypy_path = "src"
+explicit_package_bases = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"

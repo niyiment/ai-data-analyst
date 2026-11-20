@@ -21,8 +21,8 @@ Base path: `/api/v1`. JSON everywhere except uploads (`multipart/form-data`) and
 | `GET /datasets/{id}/queries` | Question history | Paginated |
 | `POST /reports` | Create a report from query runs | |
 | `GET /reports/{id}/export?format=pdf` | Download report | `pdf` or `html` |
-| `POST /eval/runs` | Start an evaluation | Rate limited |
-| `GET /eval/runs/{id}` | Progress and results | |
+| `POST /eval/runs` | Start an evaluation; returns `202` with a `running` run that executes in the background (ADR-0014) | Rate limited |
+| `GET /eval/runs/{id}` | Progress and results: `status` is `running`, `completed`, or `failed` | |
 | `POST /internal/cleanup` | Scheduled cleanup | Secret header. Not exposed to the browser. |
 
 ## Error shape
