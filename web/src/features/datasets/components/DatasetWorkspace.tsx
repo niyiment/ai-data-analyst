@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { EvaluationView } from "@/features/evaluation";
 import { QueryPanel } from "@/features/query";
 import { ReportsView, type ReportSummary } from "@/features/reports";
 import { createSession, deleteMySession, getMySession, type SessionInfo } from "@/features/sessions";
@@ -189,6 +190,8 @@ export function DatasetWorkspace() {
       {activePage === "reports" && (
         <ReportsView reports={reports} onGoToAnalyst={() => setActivePage("analyst")} />
       )}
+
+      {activePage === "evaluation" && <EvaluationView />}
     </WorkspaceShell>
   );
 }

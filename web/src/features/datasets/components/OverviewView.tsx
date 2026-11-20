@@ -195,6 +195,8 @@ export function OverviewView({
         </div>
         <div className="ask-box">
           <input
+            id="quick-question-input"
+            name="quickQuestion"
             type="text"
             value={quickQuestion}
             onChange={(e) => setQuickQuestion(e.target.value)}

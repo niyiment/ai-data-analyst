@@ -47,6 +47,8 @@ export function SchemaReviewTable({ table, onUpdateColumn }: SchemaReviewTablePr
                 <td>{col.original_name}</td>
                 <td>
                   <input
+                    id={`col-name-${col.id}`}
+                    name={`col_name_${col.id}`}
                     className="select"
                     aria-label={`Column name for ${col.original_name}`}
                     value={draftNames[col.id] ?? col.column_name}
@@ -56,6 +58,8 @@ export function SchemaReviewTable({ table, onUpdateColumn }: SchemaReviewTablePr
                 </td>
                 <td>
                   <select
+                    id={`col-type-${col.id}`}
+                    name={`col_type_${col.id}`}
                     className="select"
                     aria-label={`Type for ${col.column_name}`}
                     value={col.pg_type}

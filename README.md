@@ -110,16 +110,97 @@ See [docs/SECURITY.md](docs/SECURITY.md) for the full threat model.
 ### Prerequisites
 
 - Docker & Docker Compose
-- Python 3.12+
-- Node.js 20+
+- Python 3.12+ and [`uv`](https://docs.astral.sh/uv/)
+- Node.js 20+ and [`pnpm`](https://pnpm.io/)
 - A Google Gemini API key
 
-### Environment Variables
+### 1. Configure environment variables
 
-Never commit secret values. Configure the following in your local `.env` files once the scaffold is generated (see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for details):
+Copy `.env.example` to `.env` and fill in your `GEMINI_API_KEY` (never commit `.env`):
 
-- **API:** `DATABASE_URL_APP`, `DATABASE_URL_ANALYST`, `DATABASE_URL_OWNER` *(migrations only)*, `GEMINI_API_KEY`, `GEMINI_MODEL`, `SESSION_TTL_HOURS`, `CLEANUP_SECRET`, `ALLOWED_ORIGIN`, `RATE_LIMIT_*`, `MAX_UPLOAD_MB`, `MAX_ROWS`, `QUERY_TIMEOUT_SECONDS`, `LOG_LEVEL`
-- **Web:** `API_BASE_URL` (server-side only, for `/api/*` rewrites)
+```bash
+cp .env.example .env
+```
+
+### 2. Start PostgreSQL and run migrations
+
+```bash
+docker compose up -d postgres
+```
+
+Wait until the `postgres` container reports `healthy` (`docker compose ps`), then run Alembic migrations using the owner role:
+
+```bash
+# Bash / macOS / Linux
+export DATABASE_URL_OWNER="postgresql+psycopg://app_owner:local_owner_password@localhost:5433/ai_data_analyst"
+cd api && uv sync --python 3.12 && uv run alembic upgrade head
+```
+
+```powershell
+# Windows PowerShell
+$env:DATABASE_URL_OWNER = "postgresql+psycopg://app_owner:local_owner_password@localhost:5433/ai_data_analyst"
+cd api; uv sync --python 3.12; uv run alembic upgrade head
+```
+
+### 3. Run the API and Web apps
+
+In terminal 1 (Backend — `http://localhost:8000`):
+
+```bash
+cd api
+uv run uvicorn app.main:app --reload
+```
+
+In terminal 2 (Frontend — `http://localhost:3000`):
+
+```bash
+cd web
+pnpm install
+pnpm dev
+```
+
+*(Alternatively, run both PostgreSQL and the API container together with `docker compose up -d`.)*
+
+### 4. Verify lint, types, guardrails, and tests
+
+```bash
+# Backend
+cd api && uv run ruff check . && uv run mypy src tests && uv run pytest
+
+# Frontend
+cd web && pnpm run lint && pnpm run typecheck
+
+# Repository guardrails (file/function size limits & layering)
+python scripts/check_limits.py
+python scripts/check_layering.py
+```
+
+---
+
+## Deployment (Production)
+
+The production stack runs on free cloud tiers with zero hardcoded provider logic (see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) and [ADR-0012](docs/adr/0012-free-tier-hosting-choices.md)):
+
+| Component | Host | Notes |
+| --- | --- | --- |
+| **Database** | Neon (PostgreSQL) | Create `app_owner`, `app_rw`, and `analyst_ro` roles via `infra/postgres/init-roles.sql` |
+| **API** | Render (Docker web service) | Root directory `api/`; runs FastAPI container |
+| **Frontend** | Vercel (Next.js) | Root directory `web/`; rewrites `/api/*` to `API_BASE_URL` so cookies stay same-origin |
+| **Cleanup** | GitHub Actions | Scheduled every 30–60 min calling `POST /api/v1/internal/cleanup` with `CLEANUP_SECRET` |
+
+### Required Environment Variables
+
+- **API (Render):** `DATABASE_URL_APP` (`app_rw`), `DATABASE_URL_ANALYST` (`analyst_ro`), `GEMINI_API_KEY`, `GEMINI_MODEL`, `SESSION_TTL_HOURS`, `CLEANUP_SECRET`, `ALLOWED_ORIGIN`, `MAX_UPLOAD_MB`, `MAX_ROWS`, `QUERY_TIMEOUT_SECONDS`, `LOG_LEVEL`
+- **Migrations (CI / deploy step only):** `DATABASE_URL_OWNER` (`app_owner`) — never set on the running API service
+- **Web (Vercel):** `API_BASE_URL` (server-side only, pointing to the Render API URL)
+
+### Deployment Checklist
+
+1. Provision Neon PostgreSQL and apply `infra/postgres/init-roles.sql`.
+2. Run `cd api && uv run alembic upgrade head` with `DATABASE_URL_OWNER`.
+3. Deploy `api/` to Render and verify `GET /api/v1/health`.
+4. Deploy `web/` to Vercel with `API_BASE_URL` set to the Render URL.
+5. Configure `API_BASE_URL` and `CLEANUP_SECRET` in GitHub Actions secrets for the scheduled cleanup workflow.
 
 ---
 

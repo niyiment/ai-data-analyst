@@ -34,10 +34,17 @@ class ValidationRejected(DomainError):
 
 
 class QuotaExceeded(DomainError):
-    """Raised when rate limit or LLM quota is exceeded."""
+    """Raised when LLM quota is exceeded."""
 
     status_code = 429
     code = "QUOTA_EXCEEDED"
+
+
+class RateLimited(DomainError):
+    """Raised when a per-session or per-IP rate limit is exceeded."""
+
+    status_code = 429
+    code = "RATE_LIMITED"
 
 
 class NotFound(DomainError):

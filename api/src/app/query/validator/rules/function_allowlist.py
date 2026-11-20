@@ -97,6 +97,8 @@ class FunctionAllowlistRule:
         del context
         violations: list[RuleViolation] = []
         for func in statement.find_all(exp.Func):
+            if isinstance(func, (exp.Connector, exp.Binary, exp.Unary)):
+                continue
             name = (func.sql_name() or "").lower()
             if not name:
                 continue
