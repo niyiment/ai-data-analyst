@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
-from app.query.dependencies import get_query_service
+from app.query.dependencies import enforce_question_rate_limit, get_query_service
 from app.query.schemas import QueryHistoryResponse, QueryRequest, QueryResponse
 from app.query.service import QueryService
 from app.sessions.dependencies import require_session
@@ -14,7 +14,11 @@ from app.sessions.schemas import SessionRecord
 router = APIRouter(prefix="/api/v1/datasets", tags=["query"])
 
 
-@router.post("/{dataset_id}/queries", response_model=QueryResponse)
+@router.post(
+    "/{dataset_id}/queries",
+    response_model=QueryResponse,
+    dependencies=[Depends(enforce_question_rate_limit)],
+)
 async def ask_question(
     dataset_id: uuid.UUID,
     payload: QueryRequest,

@@ -10,6 +10,7 @@ from app.llm.claude import ClaudeLLMClient
 from app.llm.gemini import GeminiLLMClient
 from app.llm.ollama import OllamaLLMClient
 from app.llm.port import LLMClient
+from app.llm.quota import QuotaGuardedLLMClient, get_quota_guard
 
 
 def build_llm_client(
@@ -54,10 +55,11 @@ def get_llm_client(
     x_llm_api_key: Annotated[str | None, Header()] = None,
     x_llm_model: Annotated[str | None, Header()] = None,
 ) -> LLMClient:
-    """Resolve the LLMClient for the current request using optional user headers."""
-    return build_llm_client(
+    """Resolve the quota-guarded LLMClient for the current request."""
+    client = build_llm_client(
         settings=settings,
         provider=x_llm_provider,
         api_key=x_llm_api_key,
         model=x_llm_model,
     )
+    return QuotaGuardedLLMClient(client, get_quota_guard())

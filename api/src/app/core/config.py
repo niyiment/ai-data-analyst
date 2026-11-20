@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     cleanup_secret: str = ""
     allowed_origin: str = "http://localhost:3000"
     rate_limit_per_minute: int = 30
+    questions_per_session_per_hour: int = 30
+    llm_daily_call_budget: int = 1000
     max_upload_mb: int = 10
     max_rows: int = 500
     query_timeout_seconds: int = 10
