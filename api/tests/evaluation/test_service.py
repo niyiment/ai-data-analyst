@@ -1,11 +1,14 @@
 """Unit tests for EvaluationService and golden sets (US-14)."""
 
+from collections.abc import Callable
+from uuid import uuid4
+
 import pytest
 
 from app.core.errors import NotFound
 from app.evaluation.golden_sets import GOLDEN_SETS
 from app.evaluation.repository import InMemoryEvalRepository
-from app.evaluation.schemas import EvalOutcome, QuestionEvalExecution
+from app.evaluation.schemas import EvalOutcome, GoldenSet, QuestionEvalExecution
 from app.evaluation.service import EvaluationService
 
 
@@ -19,10 +22,21 @@ class FakeEvalRunner:
         return self._outcomes[question_id]
 
 
+def _factory(
+    runner: FakeEvalRunner, seen: list[str] | None = None
+) -> Callable[[GoldenSet], FakeEvalRunner]:
+    def build(golden_set: GoldenSet) -> FakeEvalRunner:
+        if seen is not None:
+            seen.append(golden_set.name)
+        return runner
+
+    return build
+
+
 @pytest.mark.asyncio
 async def test_list_sets_returns_retail_sales_golden_set() -> None:
     repo = InMemoryEvalRepository()
-    service = EvaluationService(repo=repo)
+    service = EvaluationService(repo=repo, runner_factory=_factory(FakeEvalRunner({})))
 
     sets = service.list_sets()
     assert len(sets) >= 1
@@ -54,7 +68,12 @@ async def test_run_evaluation_computes_accuracy_rejection_latency_and_tokens() -
             )
 
     repo = InMemoryEvalRepository()
-    service = EvaluationService(repo=repo, runner=FakeEvalRunner(outcomes))
+    seen: list[str] = []
+    service = EvaluationService(
+        repo=repo,
+        runner_factory=_factory(FakeEvalRunner(outcomes), seen),
+        model_name="fake:model",
+    )
 
     run = await service.run_evaluation("retail_sales")
     total = len(golden_set.questions)
@@ -68,12 +87,25 @@ async def test_run_evaluation_computes_accuracy_rejection_latency_and_tokens() -
     assert run.total_tokens_in == 50 + (total - 1) * 100
     assert run.p95_latency_ms >= run.p50_latency_ms > 0
 
-    fetched = service.get_run(run.id)
+    assert seen == ["retail_sales"]
+    assert run.model == "fake:model"
+    fetched = await service.get_run(run.id)
     assert fetched.id == run.id
 
 
 @pytest.mark.asyncio
 async def test_run_evaluation_unknown_set_raises_not_found() -> None:
-    service = EvaluationService(repo=InMemoryEvalRepository())
+    service = EvaluationService(
+        repo=InMemoryEvalRepository(), runner_factory=_factory(FakeEvalRunner({}))
+    )
     with pytest.raises(NotFound):
         await service.run_evaluation("does_not_exist")
+
+
+@pytest.mark.asyncio
+async def test_get_unknown_run_raises_not_found() -> None:
+    service = EvaluationService(
+        repo=InMemoryEvalRepository(), runner_factory=_factory(FakeEvalRunner({}))
+    )
+    with pytest.raises(NotFound):
+        await service.get_run(uuid4())
