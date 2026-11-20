@@ -34,13 +34,15 @@ def constructed(monkeypatch: pytest.MonkeyPatch) -> list[httpx.AsyncClient]:
         made.append(client)
         return client
 
-    monkeypatch.setattr(llm_http.httpx, "AsyncClient", factory)
+    monkeypatch.setattr(httpx, "AsyncClient", factory)
     llm_http.reset_shared_clients()
     return made
 
 
 async def _ask(client: OllamaLLMClient | ClaudeLLMClient) -> Answer:
-    return await client.generate_structured(system_prompt="s", user_prompt="u", response_model=Answer)
+    return await client.generate_structured(
+        system_prompt="s", user_prompt="u", response_model=Answer
+    )
 
 
 async def test_shared_client_is_reused_within_an_event_loop(

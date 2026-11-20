@@ -32,3 +32,12 @@ Locust is not a project dependency: `uv run --with locust` runs it in a temporar
 ## Testing the limits
 
 To check that the protections hold under load, run once with the default limits (30 questions per session per hour). Questions beyond the limit should return `429 RATE_LIMITED`. Those show up as failures, which is the expected behaviour in that run.
+
+## Baseline (local, 25 users, 60 s, LLM stub)
+
+| Run | Throughput | p95 (all) | Question median | `/health` avg | Failures |
+| --- | --- | --- | --- | --- | --- |
+| Before the shared HTTP client fix | 3.65 req/s | 13,000 ms | 9,600 ms | 467 ms | 0% |
+| After (`app/llm/http.py`) | 18.3 req/s | 450 ms | 160 ms | 8 ms | 0% (1,087 requests) |
+
+The first run found that each LLM call built a new `httpx.AsyncClient`, whose synchronous TLS/CA setup (~300 ms) blocked the event loop. On Windows, `localhost` also adds ~260 ms per *new* connection compared with `127.0.0.1` (IPv6 then IPv4 fallback); prefer `127.0.0.1` in local URLs.

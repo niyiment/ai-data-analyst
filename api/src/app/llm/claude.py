@@ -8,6 +8,7 @@ import httpx
 from pydantic import BaseModel
 
 from app.core.errors import QuotaExceeded
+from app.llm.http import post_json
 from app.llm.usage import record_usage
 
 T = TypeVar("T", bound=BaseModel)
@@ -43,27 +44,17 @@ class ClaudeLLMClient:
         response_model: type[T],
     ) -> T:
         """Invoke Claude and validate the returned JSON against response_model."""
-        schema_json = json.dumps(response_model.model_json_schema())
-        full_system = (
-            f"{system_prompt}\n\n"
-            f"Respond ONLY with valid JSON matching this JSON schema:\n{schema_json}"
+        response = await post_json(
+            _ANTHROPIC_URL,
+            headers={
+                "x-api-key": self._api_key,
+                "anthropic-version": _ANTHROPIC_VERSION,
+                "content-type": "application/json",
+            },
+            payload=self._payload(system_prompt, user_prompt, response_model),
+            timeout=30.0,
+            transport=self._transport,
         )
-        headers = {
-            "x-api-key": self._api_key,
-            "anthropic-version": _ANTHROPIC_VERSION,
-            "content-type": "application/json",
-        }
-        payload = {
-            "model": self._model,
-            "max_tokens": 2048,
-            "temperature": 0.0,
-            "system": full_system,
-            "messages": [{"role": "user", "content": user_prompt}],
-        }
-
-        async with httpx.AsyncClient(transport=self._transport, timeout=30.0) as client:
-            response = await client.post(_ANTHROPIC_URL, headers=headers, json=payload)
-
         if response.status_code == 429:
             raise QuotaExceeded("LLM quota exceeded. Please try again shortly.")
         response.raise_for_status()
@@ -74,3 +65,19 @@ class ClaudeLLMClient:
         blocks = body.get("content", [])
         text = "".join(b.get("text", "") for b in blocks if b.get("type") == "text")
         return response_model.model_validate_json(_strip_fences(text) or "{}")
+
+    def _payload(
+        self, system_prompt: str, user_prompt: str, response_model: type[BaseModel]
+    ) -> dict[str, object]:
+        schema_json = json.dumps(response_model.model_json_schema())
+        system = (
+            f"{system_prompt}\n\n"
+            f"Respond ONLY with valid JSON matching this JSON schema:\n{schema_json}"
+        )
+        return {
+            "model": self._model,
+            "max_tokens": 2048,
+            "temperature": 0.0,
+            "system": system,
+            "messages": [{"role": "user", "content": user_prompt}],
+        }

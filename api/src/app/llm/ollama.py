@@ -7,6 +7,7 @@ import httpx
 from pydantic import BaseModel
 
 from app.core.errors import QuotaExceeded
+from app.llm.http import post_json
 from app.llm.usage import record_usage
 
 T = TypeVar("T", bound=BaseModel)
@@ -57,10 +58,13 @@ class OllamaLLMClient:
             ],
         }
 
-        async with httpx.AsyncClient(transport=self._transport, timeout=60.0) as client:
-            response = await client.post(
-                f"{self._base_url}/api/chat", headers=headers, json=payload
-            )
+        response = await post_json(
+            f"{self._base_url}/api/chat",
+            headers=headers,
+            payload=payload,
+            timeout=60.0,
+            transport=self._transport,
+        )
 
         if response.status_code == 429:
             raise QuotaExceeded("LLM quota exceeded. Please try again shortly.")
