@@ -1,0 +1,72 @@
+"""Anthropic Claude adapter implementing the LLMClient port (ADR-0007)."""
+
+import json
+import re
+from typing import TypeVar
+
+import httpx
+from pydantic import BaseModel
+
+from app.core.errors import QuotaExceeded
+
+T = TypeVar("T", bound=BaseModel)
+
+_ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
+_ANTHROPIC_VERSION = "2023-06-01"
+_CODE_FENCE_RE = re.compile(r"^```(?:json)?\s*|\s*```$", re.IGNORECASE)
+
+
+def _strip_fences(text: str) -> str:
+    return _CODE_FENCE_RE.sub("", text.strip()).strip()
+
+
+class ClaudeLLMClient:
+    """Calls Anthropic Messages API and validates JSON output against a Pydantic model."""
+
+    def __init__(
+        self,
+        *,
+        api_key: str,
+        model: str = "claude-3-5-sonnet-latest",
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
+        self._api_key = api_key
+        self._model = model
+        self._transport = transport
+
+    async def generate_structured(
+        self,
+        *,
+        system_prompt: str,
+        user_prompt: str,
+        response_model: type[T],
+    ) -> T:
+        """Invoke Claude and validate the returned JSON against response_model."""
+        schema_json = json.dumps(response_model.model_json_schema())
+        full_system = (
+            f"{system_prompt}\n\n"
+            f"Respond ONLY with valid JSON matching this JSON schema:\n{schema_json}"
+        )
+        headers = {
+            "x-api-key": self._api_key,
+            "anthropic-version": _ANTHROPIC_VERSION,
+            "content-type": "application/json",
+        }
+        payload = {
+            "model": self._model,
+            "max_tokens": 2048,
+            "temperature": 0.0,
+            "system": full_system,
+            "messages": [{"role": "user", "content": user_prompt}],
+        }
+
+        async with httpx.AsyncClient(transport=self._transport, timeout=30.0) as client:
+            response = await client.post(_ANTHROPIC_URL, headers=headers, json=payload)
+
+        if response.status_code == 429:
+            raise QuotaExceeded("LLM quota exceeded. Please try again shortly.")
+        response.raise_for_status()
+
+        blocks = response.json().get("content", [])
+        text = "".join(b.get("text", "") for b in blocks if b.get("type") == "text")
+        return response_model.model_validate_json(_strip_fences(text) or "{}")

@@ -20,8 +20,16 @@ class Settings(BaseSettings):
     database_url_analyst: str = (
         "postgresql+psycopg://analyst_ro:local_analyst_ro_password@localhost:5433/ai_data_analyst"
     )
+    llm_provider: str = "ollama"
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "llama3.2"
+    ollama_cloud_base_url: str = "https://ollama.com"
+    ollama_cloud_api_key: str = ""
+    ollama_cloud_model: str = "llama3.2"
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
+    anthropic_api_key: str = ""
+    claude_model: str = "claude-3-5-sonnet-latest"
     session_ttl_hours: int = 24
     cleanup_secret: str = ""
     allowed_origin: str = "http://localhost:3000"

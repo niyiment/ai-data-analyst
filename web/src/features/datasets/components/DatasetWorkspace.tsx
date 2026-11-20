@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { EvaluationView } from "@/features/evaluation";
 import { QueryPanel } from "@/features/query";
 import { ReportsView, type ReportSummary } from "@/features/reports";
+import { SettingsView } from "@/features/settings";
 import { createSession, deleteMySession, getMySession, type SessionInfo } from "@/features/sessions";
 import { loadSampleDataset, updateDatasetColumn, uploadDatasetFile } from "../api/dataset-api";
 import type { DatasetDetail } from "../types/dataset";
@@ -192,6 +193,8 @@ export function DatasetWorkspace() {
       )}
 
       {activePage === "evaluation" && <EvaluationView />}
+
+      {activePage === "settings" && <SettingsView />}
     </WorkspaceShell>
   );
 }

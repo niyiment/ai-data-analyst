@@ -3,7 +3,13 @@
 import { useState, type ReactNode } from "react";
 import type { SessionInfo } from "@/features/sessions";
 
-export type WorkspacePage = "overview" | "analyst" | "datasets" | "reports" | "evaluation";
+export type WorkspacePage =
+  | "overview"
+  | "analyst"
+  | "datasets"
+  | "reports"
+  | "evaluation"
+  | "settings";
 
 const PAGE_LABELS: Record<WorkspacePage, string> = {
   overview: "Overview",
@@ -11,6 +17,7 @@ const PAGE_LABELS: Record<WorkspacePage, string> = {
   datasets: "Datasets",
   reports: "Reports",
   evaluation: "Evaluation",
+  settings: "Settings",
 };
 
 interface WorkspaceShellProps {
@@ -119,6 +126,21 @@ export function WorkspaceShell({
         </nav>
 
         <div className="side-bottom">
+          <div className="workspace-label">Configuration</div>
+          <nav className="nav" aria-label="Settings navigation">
+            <button
+              type="button"
+              className={activePage === "settings" ? "active" : ""}
+              onClick={() => go("settings")}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.7 1.7-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.2h-2.4v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1L8 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H6.7v-2.4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L8 8.6l1.7-1.7.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5v-.2h2.4v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.7 1.7-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2V14h-.2a1.7 1.7 0 0 0-1.5 1z" />
+              </svg>
+              AI Settings
+            </button>
+          </nav>
+
           <div className="usage">
             <div className="usage-top">
               <span>Session quota</span>
