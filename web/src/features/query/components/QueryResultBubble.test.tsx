@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { axe } from "vitest-axe";
 import type { QueryResult } from "../types/query";
@@ -50,5 +51,58 @@ describe("QueryResultBubble charts", () => {
 
     expect(screen.queryByRole("figure")).not.toBeInTheDocument();
     expect(screen.getByRole("table")).toBeInTheDocument();
+  });
+});
+
+describe("QueryResultBubble states", () => {
+  it("offers clarification options as buttons that resend the question", async () => {
+    const onClarify = vi.fn();
+    render(
+      <QueryResultBubble
+        busy={false}
+        onClarify={onClarify}
+        result={{
+          ...base,
+          status: "needs_clarification",
+          plan: {
+            intent: "rank products",
+            tables: [],
+            columns: [],
+            aggregations: [],
+            filters: [],
+            needs_clarification: true,
+            clarifying_question: "Rank by revenue or units?",
+            clarification_options: ["By revenue", "By units"],
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText(/rank by revenue or units\?/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "By units" }));
+    expect(onClarify).toHaveBeenCalledWith("Revenue by region", "By units");
+  });
+
+  it("announces validator rejections with each rule and reason", () => {
+    renderBubble({
+      ...base,
+      status: "rejected",
+      rejection_reasons: [{ rule: "single_select", message: "Only SELECT is allowed." }],
+    });
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("single_select");
+    expect(alert).toHaveTextContent("Only SELECT is allowed.");
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  it("copies the generated SQL to the clipboard", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+    renderBubble(base);
+
+    await user.click(screen.getByRole("button", { name: /copy sql/i }));
+
+    expect(writeText).toHaveBeenCalledWith(base.generated_sql);
   });
 });
