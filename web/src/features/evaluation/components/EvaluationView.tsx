@@ -2,7 +2,7 @@
 
 import NumberFlow from "@number-flow/react";
 import { AlertCircle, CheckCircle2, Clock, Play, Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,14 +15,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { listEvalSets, startEvalRun } from "../api/eval-api";
+import { listEvalSets } from "../api/eval-api";
+import { useEvalRun } from "../hooks/use-eval-run";
 import type { EvalRunDetail, GoldenSetSummary } from "../types/eval";
 
-export function EvaluationView() {
+interface EvaluationViewProps {
+  pollIntervalMs?: number;
+}
+
+function pathSummary(run: EvalRunDetail): string {
+  const entries = Object.entries(run.accuracy_by_path ?? {});
+  return entries.map(([path, acc]) => `${path} ${Math.round(acc * 100)}%`).join(" · ");
+}
+
+export function EvaluationView({ pollIntervalMs }: EvaluationViewProps) {
   const [sets, setSets] = useState<GoldenSetSummary[]>([]);
   const [selectedSet, setSelectedSet] = useState("retail_sales");
-  const [run, setRun] = useState<EvalRunDetail | null>(null);
-  const [busy, setBusy] = useState(false);
+  const { run, running: busy, error, start } = useEvalRun(pollIntervalMs);
+  const announced = useRef<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -38,18 +48,12 @@ export function EvaluationView() {
     })();
   }, []);
 
-  async function handleRun() {
-    setBusy(true);
-    try {
-      const result = await startEvalRun(selectedSet);
-      setRun(result);
-      toast.success(`Evaluation complete: ${Math.round(result.accuracy * 100)}% accuracy`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Evaluation run failed.");
-    } finally {
-      setBusy(false);
+  useEffect(() => {
+    if (run?.status === "completed" && announced.current !== run.id) {
+      announced.current = run.id;
+      toast.success(`Evaluation complete: ${Math.round(run.accuracy * 100)}% accuracy`);
     }
-  }
+  }, [run]);
 
   return (
     <section aria-label="Evaluation" className="space-y-6">
@@ -81,14 +85,28 @@ export function EvaluationView() {
               </option>
             ))}
           </select>
-          <Button type="button" disabled={busy} onClick={() => void handleRun()}>
+          <Button type="button" disabled={busy} onClick={() => void start(selectedSet)}>
             <Play className="size-3.5" />
             {busy ? "Running…" : "Run evaluation"}
           </Button>
         </div>
       </div>
 
-      <div aria-live="polite" className="space-y-6">
+      {busy && run && (
+        <p role="status" className="text-sm text-muted-foreground">
+          Answered {run.results.length} of {run.total_questions} questions…
+        </p>
+      )}
+      {error && (
+        <p
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900"
+        >
+          {error}
+        </p>
+      )}
+
+      <div className="space-y-6">
         {run ? (
           <>
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -104,6 +122,9 @@ export function EvaluationView() {
                   <p className="mt-1 text-xs text-muted-foreground">
                     {run.correct_count} of {run.total_questions} passed
                   </p>
+                  {pathSummary(run) && (
+                    <p className="mt-0.5 text-xs text-muted-foreground">{pathSummary(run)}</p>
+                  )}
                 </CardContent>
               </Card>
 

@@ -18,6 +18,7 @@ export const evalQuestionResultSchema = z.object({
   tokens_in: z.number().int(),
   tokens_out: z.number().int(),
   failure_category: z.string().nullable(),
+  plan_skipped: z.boolean().optional(),
 });
 
 export const evalRunDetailSchema = z.object({
@@ -26,7 +27,9 @@ export const evalRunDetailSchema = z.object({
   prompt_version: z.string(),
   model: z.string(),
   started_at: z.string(),
-  finished_at: z.string(),
+  finished_at: z.string().nullable().optional(),
+  status: z.enum(["running", "completed", "failed"]),
+  error: z.string().nullable().optional(),
   total_questions: z.number().int(),
   correct_count: z.number().int(),
   rejected_count: z.number().int(),
@@ -37,6 +40,7 @@ export const evalRunDetailSchema = z.object({
   total_tokens_in: z.number().int(),
   total_tokens_out: z.number().int(),
   failure_categories: z.record(z.string(), z.number().int()),
+  accuracy_by_path: z.record(z.string(), z.number()).optional(),
   results: z.array(evalQuestionResultSchema),
 });
 

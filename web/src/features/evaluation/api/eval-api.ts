@@ -17,3 +17,7 @@ export function startEvalRun(setName: string): Promise<EvalRunDetail> {
     body: JSON.stringify({ set_name: setName }),
   });
 }
+
+export function getEvalRun(runId: string): Promise<EvalRunDetail> {
+  return apiRequest(`/api/v1/eval/runs/${encodeURIComponent(runId)}`, evalRunDetailSchema);
+}
