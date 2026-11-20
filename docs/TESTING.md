@@ -2,14 +2,15 @@
 
 ## 9.1 Test layers
 
-| Layer | Scope | Tooling |
-| --- | --- | --- |
-| Unit | Services, validator rules, sanitiser, type inference, chart-spec validator | `pytest` with fakes; `Vitest` on the frontend |
-| Integration | Repositories, ingestion, executor limits, cleanup | `pytest` against PostgreSQL in Docker |
-| API | Endpoint behaviour, ownership, error shapes | `pytest` with the ASGI test client |
-| End to end | Upload, ask, chart, report happy path | Playwright against a local stack |
-| Security | Adversarial SQL and authorisation suites | `pytest`, run in CI on every change |
-| Evaluation | Golden sets with the live model | Runner, scheduled or manual, never in unit CI |
+| Layer | Scope | Tooling | Where / command |
+| --- | --- | --- | --- |
+| Unit | Services, validator rules, sanitiser, type inference, chart-spec validator, LLM adapters, API client, chart mapper | `pytest` with fakes; `Vitest` | `api/tests/**`, `web/src/**/*.test.ts`; `uv run pytest`, `pnpm test` |
+| Component | Each page and widget: behaviour plus axe accessibility checks | `Vitest`, Testing Library, `vitest-axe` | `web/src/**/*.test.tsx`; `pnpm test`, `pnpm test:coverage` |
+| Integration | HTTP flows over real PostgreSQL (repositories, DDL, executor, isolation, cleanup); golden reference SQL as `analyst_ro` | `pytest` + ASGI client; skipped when PostgreSQL is unreachable; runs in CI | `api/tests/integration/` |
+| Security | Adversarial SQL and authorisation suites | `pytest`, run in CI on every change | `api/tests/query/validator/`, integration isolation tests |
+| End to end | Browser -> Next.js -> API -> PostgreSQL user journeys, keyboard skip link, axe WCAG A/AA (incl. contrast) | Playwright with a deterministic Ollama-compatible LLM stub (`web/e2e/llm-stub.mjs`) | `web/e2e/`; `pnpm test:e2e` (needs PostgreSQL + migrations) |
+| Load | Concurrent sessions: sample load, questions, history and detail reads; fails on >1% errors or p95 > 1.5 s | Locust (not a project dependency) | `loadtest/`; see `loadtest/README.md` |
+| Evaluation | Golden sets with the live model | Runner, scheduled or manual, never in unit CI | Evaluation page or `POST /api/v1/eval/runs` |
 
 ## 9.2 Evaluation design
 
