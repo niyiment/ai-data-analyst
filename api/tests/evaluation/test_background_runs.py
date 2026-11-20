@@ -1,5 +1,7 @@
 """Evaluation runs execute in the background and report progress (avoids request timeouts)."""
 
+from datetime import timedelta
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -108,3 +110,24 @@ async def test_post_returns_202_running_and_the_run_completes_in_the_background(
 
     assert polled.json()["status"] == "completed"
     assert len(polled.json()["results"]) == TOTAL
+
+
+async def test_runs_stuck_running_past_the_limit_are_reported_as_interrupted() -> None:
+    repo = InMemoryEvalRepository()
+    service = _service(ExplodingRunner(), repo)
+    run = await service.start_run("retail_sales")
+    old = run.model_copy(update={"started_at": run.started_at - timedelta(minutes=61)})
+    await repo.save_run(old)
+
+    reported = await service.get_run(run.id)
+
+    assert reported.status == "failed"
+    assert reported.error == "Evaluation interrupted before finishing."
+    assert (await repo.get_run(run.id)) == reported
+
+
+async def test_recent_running_runs_stay_running() -> None:
+    service = _service(ExplodingRunner(), InMemoryEvalRepository())
+    run = await service.start_run("retail_sales")
+
+    assert (await service.get_run(run.id)).status == "running"

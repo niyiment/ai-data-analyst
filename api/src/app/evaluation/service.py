@@ -1,7 +1,7 @@
 """Evaluation service: start golden-set runs and execute them with saved progress."""
 
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Protocol
 from uuid import UUID, uuid4
 
@@ -53,8 +53,10 @@ class EvaluationService:
         runner_factory: RunnerFactory,
         model_name: str = "unknown",
         prompt_version: str = "v1",
+        stale_after: timedelta = timedelta(minutes=60),
     ) -> None:
         self._repo = repo
+        self._stale_after = stale_after
         self._runner_factory = runner_factory
         self._model_name = model_name
         self._prompt_version = prompt_version
@@ -132,6 +134,16 @@ class EvaluationService:
         run = await self._repo.get_run(run_id)
         if run is None:
             raise NotFound("Evaluation run not found.")
+        if run.status == "running" and datetime.now(UTC) - run.started_at > self._stale_after:
+            # The in-process job was lost (restart, redeploy, killed process); see ADR-0014.
+            interrupted = run.model_copy(
+                update={
+                    "status": "failed",
+                    "finished_at": datetime.now(UTC),
+                    "error": "Evaluation interrupted before finishing.",
+                }
+            )
+            return await self._repo.save_run(interrupted)
         return run
 
 
