@@ -108,16 +108,21 @@ Execution rules for `analyst_ro`: every query runs inside a read-only transactio
 
 Result rows are **not** stored. Re-running a query regenerates them, which keeps stored data small and short-lived.
 
-## 6.4 Evaluation tables (schema `eval`)
+## 6.4 Evaluation data
+
+Golden sets (questions, reference SQL, category, difficulty, `order_sensitive`, `expects_clarification`) live in version control as validated JSON under `api/src/app/evaluation/golden/`, not in database tables.
 
 | Table | Key columns |
 | --- | --- |
-| `eval_sets` | `id`, `name`, `demo_schema`, `description` |
-| `eval_questions` | `id`, `set_id`, `question`, `reference_sql`, `category`, `difficulty`, `order_sensitive` |
-| `eval_runs` | `id`, `set_id`, `prompt_version`, `model`, `started_at`, `finished_at` |
-| `eval_results` | `id`, `run_id`, `question_id`, `generated_sql`, `outcome` (`correct`, `wrong`, `rejected`, `error`), `latency_ms`, `tokens_in`, `tokens_out`, `failure_category` |
+| `app.eval_runs` (migration `0004`) | `id`, `set_name`, `model` (`provider:model`), `prompt_version`, `started_at`, `finished_at`, `accuracy`, `detail` (JSON: aggregate metrics and per-question results with `outcome` `correct`/`wrong`/`rejected`/`error`, `generated_sql`, `latency_ms`, `failure_category`) |
 
-Evaluation tables hold no user data and are never touched by cleanup.
+Demo datasets live in persistent `demo_<name>` schemas created by migration, with `USAGE`/`SELECT` granted to `analyst_ro`:
+
+| Schema | Tables | Created by |
+| --- | --- | --- |
+| `demo_retail_sales` | `retail_sales` (40 orders, Jan–Mar 2026), `regions` (manager, revenue target) | migration `0005` (frozen seed data; change only via a new migration) |
+
+Evaluation data holds no user data and is never touched by cleanup.
 
 ## 6.5 Identifier handling
 

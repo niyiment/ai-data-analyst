@@ -74,7 +74,7 @@ ai-data-analyst/
 └── README.md
 ```
 
-> **Status:** Weeks 0–4 are implemented: sessions and ingestion, the safe query core, charts, insights, reports, evaluation, rate limits, and the quota guard. Remaining work is the accessibility pass and Week 5 (production deploy, scheduled cleanup workflow, published accuracy results). See [docs/ROADMAP.md](docs/ROADMAP.md).
+> **Status:** Weeks 0–4 are implemented: sessions and ingestion, the safe query core, charts, insights, reports, LLM-backed evaluation against a persistent demo schema (33 golden questions), per-session question limits, a global LLM quota guard, and an accessibility pass. Remaining work is Week 5 (production deploy, scheduled cleanup workflow, published accuracy results). See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ---
 
@@ -100,7 +100,8 @@ See [docs/SECURITY.md](docs/SECURITY.md) for the full threat model.
 | Datasets per session | 3 |
 | Result rows returned | 1,000 |
 | Query timeout | 10 seconds |
-| Questions per session / hour | 30 |
+| Questions per session / hour | 30 (`QUESTIONS_PER_SESSION_PER_HOUR`) |
+| LLM calls per day (all sessions) | 1,000 (`LLM_DAILY_CALL_BUDGET`) |
 | Session lifetime | 24 hours |
 
 ---
@@ -190,7 +191,7 @@ The production stack runs on free cloud tiers with zero hardcoded provider logic
 
 ### Required Environment Variables
 
-- **API (Render):** `DATABASE_URL_APP` (`app_rw`), `DATABASE_URL_ANALYST` (`analyst_ro`), `LLM_PROVIDER` plus that provider's settings (`OLLAMA_CLOUD_BASE_URL` / `OLLAMA_CLOUD_API_KEY` / `OLLAMA_CLOUD_MODEL`, `GEMINI_API_KEY` / `GEMINI_MODEL`, or `ANTHROPIC_API_KEY` / `CLAUDE_MODEL`), `SESSION_TTL_HOURS`, `CLEANUP_SECRET`, `ALLOWED_ORIGIN`, `MAX_UPLOAD_MB`, `MAX_ROWS`, `QUERY_TIMEOUT_SECONDS`, `LOG_LEVEL`
+- **API (Render):** `DATABASE_URL_APP` (`app_rw`), `DATABASE_URL_ANALYST` (`analyst_ro`), `LLM_PROVIDER` plus that provider's settings (`OLLAMA_CLOUD_BASE_URL` / `OLLAMA_CLOUD_API_KEY` / `OLLAMA_CLOUD_MODEL`, `GEMINI_API_KEY` / `GEMINI_MODEL`, or `ANTHROPIC_API_KEY` / `CLAUDE_MODEL`), `SESSION_TTL_HOURS`, `CLEANUP_SECRET`, `ALLOWED_ORIGIN`, `QUESTIONS_PER_SESSION_PER_HOUR`, `LLM_DAILY_CALL_BUDGET`, `MAX_UPLOAD_MB`, `MAX_ROWS`, `QUERY_TIMEOUT_SECONDS`, `LOG_LEVEL`
 - **Migrations (CI / deploy step only):** `DATABASE_URL_OWNER` (`app_owner`) — never set on the running API service
 - **Web (Vercel):** `API_BASE_URL` (server-side only, pointing to the Render API URL)
 
@@ -206,7 +207,7 @@ The production stack runs on free cloud tiers with zero hardcoded provider logic
 
 ## Testing & Evaluation
 
-- **Unit & API tests:** `pytest` with fake DB/LLM adapters (backend) and `Vitest` (frontend). No unit test ever calls a live LLM provider.
+- **Unit & API tests:** `pytest` with fake DB/LLM adapters (backend) and `Vitest` + Testing Library with automated `axe` accessibility checks (frontend). No unit test ever calls a live LLM provider.
 - **Integration & security tests:** `pytest` against PostgreSQL in Docker, including an adversarial SQL suite (100% block target) and cross-session authorisation tests.
 - **End-to-end tests:** Playwright against the local stack.
 - **Evaluation:** Golden question sets (~30 questions per demo dataset) compared by *execution result* rather than SQL text, targeting at least **80% execution accuracy** (90% stretch). Run them from the Evaluation page or via `POST /api/v1/eval/runs`.
@@ -241,5 +242,5 @@ See [docs/TESTING.md](docs/TESTING.md) for details.
 | **1** | Sessions & ingestion: cookie sessions, upload, schema inference, per-dataset schemas, cleanup | Done |
 | **2** | Safe query core: AST validator (100% adversarial block), read-only executor, plan/SQL pipeline | Done |
 | **3** | Charts, insights & reports: ECharts spec validation, on-demand insights, PDF/HTML export | Done |
-| **4** | Evaluation & hardening: golden sets, eval UI, rate limits, quota guard, accessibility | Done, except accessibility pass |
+| **4** | Evaluation & hardening: golden sets, eval UI, rate limits, quota guard, accessibility | Done (live-database verification pending) |
 | **5** | Deploy & polish: Vercel + Render + Neon production deploy, scheduled cleanup, demo | Not started |
