@@ -34,7 +34,9 @@ export function SafetyGuardrailsCard() {
       <CardContent className="space-y-4">
         {GUARDRAILS.map(({ title, desc, icon: Icon, tone }) => (
           <div key={title} className="flex items-start gap-3">
-            <span className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md ${tone}`}>
+            <span
+              className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md ${tone}`}
+            >
               <Icon className="size-4" />
             </span>
             <div className="text-xs leading-relaxed text-muted-foreground">

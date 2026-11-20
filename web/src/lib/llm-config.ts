@@ -16,12 +16,7 @@ export const DEFAULT_MODELS: Record<LlmProvider, string> = {
 const STORAGE_KEY = "insightai_llm_config";
 
 function parseProvider(value: unknown): LlmProvider {
-  if (
-    value === "gemini" ||
-    value === "claude" ||
-    value === "ollama" ||
-    value === "ollama_cloud"
-  ) {
+  if (value === "gemini" || value === "claude" || value === "ollama" || value === "ollama_cloud") {
     return value;
   }
   return "ollama";

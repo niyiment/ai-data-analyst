@@ -92,7 +92,13 @@ export function UploadPanel({ busy, onUploadFile, onLoadSample }: UploadPanelPro
               </p>
             </div>
             <div className="mt-4">
-              <Button type="button" variant="outline" size="sm" disabled={busy} onClick={onLoadSample}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={busy}
+                onClick={onLoadSample}
+              >
                 {busy ? "Loading…" : "Load Retail Sales sample"}
                 <ArrowRight className="size-3.5" />
               </Button>

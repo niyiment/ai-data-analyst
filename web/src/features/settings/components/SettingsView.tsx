@@ -96,10 +96,7 @@ export function SettingsView() {
 
             {provider !== "ollama" && (
               <div className="space-y-1.5">
-                <label
-                  htmlFor="llm-api-key-input"
-                  className="text-xs font-medium text-foreground"
-                >
+                <label htmlFor="llm-api-key-input" className="text-xs font-medium text-foreground">
                   API Key (optional — leave blank to use server default)
                 </label>
                 <Input

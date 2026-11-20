@@ -9,7 +9,12 @@ import { EvaluationView } from "@/features/evaluation";
 import { QueryPanel } from "@/features/query";
 import { ReportsView, type ReportSummary } from "@/features/reports";
 import { SettingsView } from "@/features/settings";
-import { createSession, deleteMySession, getMySession, type SessionInfo } from "@/features/sessions";
+import {
+  createSession,
+  deleteMySession,
+  getMySession,
+  type SessionInfo,
+} from "@/features/sessions";
 import { loadSampleDataset, updateDatasetColumn, uploadDatasetFile } from "../api/dataset-api";
 import type { DatasetDetail } from "../types/dataset";
 import { OverviewView } from "./OverviewView";
@@ -198,7 +203,8 @@ export function DatasetWorkspace() {
           {dataset && (
             <section aria-label="Schema review" className="space-y-4">
               <h2 className="text-base font-semibold tracking-tight">
-                Schema Review: <span className="font-mono text-primary">{dataset.original_filename}</span>
+                Schema Review:{" "}
+                <span className="font-mono text-primary">{dataset.original_filename}</span>
               </h2>
               {dataset.tables.map((table) => (
                 <SchemaReviewTable
