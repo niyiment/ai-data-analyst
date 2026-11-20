@@ -13,6 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ChartRenderer } from "@/features/charts";
 import { InsightsAndReportActions, type ReportSummary } from "@/features/reports";
 import type { QueryResult } from "../types/query";
 
@@ -137,6 +138,8 @@ export function QueryResultBubble({
             </TableBody>
           </Table>
         </div>
+
+        {result.chart_spec && <ChartRenderer spec={result.chart_spec} rows={result.rows} />}
 
         {result.generated_sql && (
           <div className="relative rounded-lg bg-slate-950 p-3 font-mono text-xs text-slate-100">

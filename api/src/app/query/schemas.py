@@ -6,6 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from app.charts.schemas import ChartSpec
+
 
 class QueryPlan(BaseModel):
     """Structured output of Stage 1 (plan)."""
@@ -49,6 +51,7 @@ class QueryResponse(BaseModel):
     truncated: bool = False
     rejection_reasons: list[dict[str, str]] = Field(default_factory=list)
     stage_timings_ms: dict[str, int] = Field(default_factory=dict)
+    chart_spec: ChartSpec | None = None
     created_at: datetime
 
 

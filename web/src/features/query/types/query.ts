@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { chartSpecSchema } from "@/features/charts";
 
 export const queryPlanSchema = z.object({
   intent: z.string(),
@@ -24,6 +25,7 @@ export const queryResponseSchema = z.object({
   truncated: z.boolean(),
   rejection_reasons: z.array(z.object({ rule: z.string(), message: z.string() })),
   stage_timings_ms: z.record(z.number().int()),
+  chart_spec: chartSpecSchema.nullable().optional(),
   created_at: z.string(),
 });
 

@@ -62,3 +62,13 @@ def infer_default_chart_spec(
     y_col = numeric_cols[0]
     chart_type: ChartType = "line" if "date" in x_col.lower() or "month" in x_col.lower() else "bar"
     return ChartSpec(chart_type=chart_type, x=x_col, y=y_col, title=title)
+
+
+def recommend_chart(
+    *, columns: list[str], rows: list[dict[str, Any]], title: str
+) -> ChartSpec | None:
+    """Return a chart spec only if one can be inferred and it validates against the result."""
+    spec = infer_default_chart_spec(columns=columns, rows=rows, title=title)
+    if spec is None:
+        return None
+    return validate_chart_spec(spec, columns=columns, rows=rows).spec

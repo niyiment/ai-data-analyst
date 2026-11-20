@@ -5,6 +5,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
+from app.charts.service import recommend_chart
 from app.query.executor import ExecutionResult
 from app.query.repository import DatasetQueryContext, QueryRunCreate
 from app.query.schemas import QueryPlan, QueryRequest, QueryResponse
@@ -91,5 +92,10 @@ def _build_response(
         truncated=run.truncated,
         rejection_reasons=run.rejection_reasons or [],
         stage_timings_ms=run.stage_timings_ms,
+        chart_spec=(
+            recommend_chart(columns=exec_result.columns, rows=exec_result.rows, title=run.question)
+            if exec_result
+            else None
+        ),
         created_at=run.created_at,
     )
