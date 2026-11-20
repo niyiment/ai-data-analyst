@@ -1,6 +1,20 @@
 "use client";
 
+import NumberFlow from "@number-flow/react";
+import { AlertCircle, CheckCircle2, Clock, Play, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { listEvalSets, startEvalRun } from "../api/eval-api";
 import type { EvalRunDetail, GoldenSetSummary } from "../types/eval";
 
@@ -9,7 +23,6 @@ export function EvaluationView() {
   const [selectedSet, setSelectedSet] = useState("retail_sales");
   const [run, setRun] = useState<EvalRunDetail | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -20,39 +33,44 @@ export function EvaluationView() {
           setSelectedSet(loaded[0].name);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not load evaluation sets.");
+        toast.error(err instanceof Error ? err.message : "Could not load evaluation sets.");
       }
     })();
   }, []);
 
   async function handleRun() {
     setBusy(true);
-    setError(null);
     try {
-      setRun(await startEvalRun(selectedSet));
+      const result = await startEvalRun(selectedSet);
+      setRun(result);
+      toast.success(`Evaluation complete: ${Math.round(result.accuracy * 100)}% accuracy`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Evaluation run failed.");
+      toast.error(err instanceof Error ? err.message : "Evaluation run failed.");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <section aria-label="Evaluation">
-      <div className="page-head">
+    <section aria-label="Evaluation" className="space-y-6">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <div className="eyebrow">Quality &amp; benchmarks</div>
-          <h1>Evaluation</h1>
-          <p>Run golden question sets to measure SQL accuracy, validator rejections, and latency.</p>
+          <p className="text-xs font-medium uppercase tracking-wider text-primary">
+            Quality &amp; benchmarks
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Evaluation</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Run golden question sets to measure SQL accuracy, validator rejections, and latency.
+          </p>
         </div>
-        <div className="actions">
+        <div className="flex flex-wrap items-center gap-2">
           <label htmlFor="eval-set-select" className="sr-only">
             Golden question set
           </label>
           <select
             id="eval-set-select"
             name="evalSet"
-            className="select"
+            className="h-9 rounded-md border border-input bg-card px-3 text-sm text-foreground shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             value={selectedSet}
             onChange={(e) => setSelectedSet(e.target.value)}
             disabled={busy}
@@ -63,105 +81,130 @@ export function EvaluationView() {
               </option>
             ))}
           </select>
-          <button type="button" className="btn primary" disabled={busy} onClick={() => void handleRun()}>
-            {busy ? "Running…" : "▶ Run evaluation"}
-          </button>
+          <Button type="button" disabled={busy} onClick={() => void handleRun()}>
+            <Play className="size-3.5" />
+            {busy ? "Running…" : "Run evaluation"}
+          </Button>
         </div>
       </div>
 
-      {error && (
-        <div role="alert" className="alert-error">
-          {error}
-        </div>
-      )}
-
-      <div aria-live="polite">
+      <div aria-live="polite" className="space-y-6">
         {run ? (
           <>
-            <div className="metrics">
-              <div className="metric">
-                <div className="metric-top">
-                  <span>Execution accuracy</span>
-                  <span className="metric-icon green">✓</span>
-                </div>
-                <div className="metric-value">{Math.round(run.accuracy * 100)}%</div>
-                <div className="metric-foot">
-                  {run.correct_count} of {run.total_questions} passed
-                </div>
-              </div>
-              <div className="metric">
-                <div className="metric-top">
-                  <span>Rejection rate</span>
-                  <span className="metric-icon amber">!</span>
-                </div>
-                <div className="metric-value">{Math.round(run.rejection_rate * 100)}%</div>
-                <div className="metric-foot">{run.rejected_count} blocked by validator</div>
-              </div>
-              <div className="metric">
-                <div className="metric-top">
-                  <span>p95 latency</span>
-                  <span className="metric-icon">◷</span>
-                </div>
-                <div className="metric-value">{run.p95_latency_ms} ms</div>
-                <div className="metric-foot">p50: {run.p50_latency_ms} ms</div>
-              </div>
-              <div className="metric">
-                <div className="metric-top">
-                  <span>Token usage</span>
-                  <span className="metric-icon">✦</span>
-                </div>
-                <div className="metric-value">
-                  {(run.total_tokens_in + run.total_tokens_out).toLocaleString()}
-                </div>
-                <div className="metric-foot">Model: {run.model}</div>
-              </div>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <Card>
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                    <span>Execution accuracy</span>
+                    <CheckCircle2 className="size-4 text-emerald-600" />
+                  </div>
+                  <div className="mt-3 text-2xl font-semibold tracking-tight tabular-nums">
+                    <NumberFlow value={Math.round(run.accuracy * 100)} suffix="%" />
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {run.correct_count} of {run.total_questions} passed
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                    <span>Rejection rate</span>
+                    <AlertCircle className="size-4 text-amber-600" />
+                  </div>
+                  <div className="mt-3 text-2xl font-semibold tracking-tight tabular-nums">
+                    <NumberFlow value={Math.round(run.rejection_rate * 100)} suffix="%" />
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {run.rejected_count} blocked by validator
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                    <span>p95 latency</span>
+                    <Clock className="size-4 text-muted-foreground" />
+                  </div>
+                  <div className="mt-3 text-2xl font-semibold tracking-tight tabular-nums">
+                    <NumberFlow value={run.p95_latency_ms} suffix=" ms" />
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">p50: {run.p50_latency_ms} ms</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                    <span>Token usage</span>
+                    <Sparkles className="size-4 text-primary" />
+                  </div>
+                  <div className="mt-3 text-2xl font-semibold tracking-tight tabular-nums">
+                    <NumberFlow value={run.total_tokens_in + run.total_tokens_out} />
+                  </div>
+                  <p className="mt-1 truncate text-xs text-muted-foreground">Model: {run.model}</p>
+                </CardContent>
+              </Card>
             </div>
 
-            <div className="panel">
-              <div className="panel-head">
-                <div>
-                  <div className="panel-title">Question results ({run.set_name})</div>
-                  <div className="panel-sub">Prompt {run.prompt_version}</div>
-                </div>
-              </div>
-              <div className="table-wrap">
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Question</th>
-                      <th>Category</th>
-                      <th>Difficulty</th>
-                      <th>Outcome</th>
-                      <th>Latency</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+            <Card>
+              <CardHeader>
+                <CardTitle>Question results ({run.set_name})</CardTitle>
+                <CardDescription>Prompt {run.prompt_version}</CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>ID</TableHead>
+                      <TableHead>Question</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Difficulty</TableHead>
+                      <TableHead>Outcome</TableHead>
+                      <TableHead>Latency</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {run.results.map((r) => (
-                      <tr key={r.question_id}>
-                        <td>{r.question_id}</td>
-                        <td>{r.question}</td>
-                        <td>{r.category}</td>
-                        <td>{r.difficulty}</td>
-                        <td>
-                          <span className="status">{r.outcome}</span>
-                        </td>
-                        <td>{r.latency_ms} ms</td>
-                      </tr>
+                      <TableRow key={r.question_id}>
+                        <TableCell className="font-mono text-xs">{r.question_id}</TableCell>
+                        <TableCell>{r.question}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{r.category}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{r.difficulty}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={r.outcome === "correct" ? "success" : "warning"}>
+                            {r.outcome}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-mono text-xs tabular-nums">
+                          {r.latency_ms} ms
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           </>
         ) : (
-          <div className="panel" style={{ padding: "32px", textAlign: "center" }}>
-            <strong style={{ fontSize: "13px" }}>Ready to benchmark</strong>
-            <p className="empty-note">
-              Select a golden set above and click &ldquo;Run evaluation&rdquo; to inspect accuracy
-              and validator safety.
-            </p>
-          </div>
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="mb-3 flex size-11 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                <CheckCircle2 className="size-5" />
+              </div>
+              <h2 className="text-sm font-semibold">Ready to benchmark</h2>
+              <p className="mt-1 max-w-md text-xs text-muted-foreground">
+                Select a golden set above and click &ldquo;Run evaluation&rdquo; to inspect accuracy
+                and validator safety.
+              </p>
+            </CardContent>
+          </Card>
         )}
       </div>
     </section>

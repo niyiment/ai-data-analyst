@@ -1,7 +1,31 @@
 "use client";
 
+import NumberFlow from "@number-flow/react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  Database,
+  FileSpreadsheet,
+  FileText,
+  Plus,
+  Rows3,
+  Sparkles,
+} from "lucide-react";
 import { useState, type FormEvent } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import type { DatasetDetail } from "../types/dataset";
+import { SafetyGuardrailsCard } from "./SafetyGuardrailsCard";
 import type { WorkspacePage } from "./WorkspaceShell";
 
 interface OverviewViewProps {
@@ -36,178 +60,175 @@ export function OverviewView({
     }
   }
 
+  const metrics = [
+    {
+      label: "Datasets uploaded",
+      value: datasets.length,
+      foot: "Max 3 per anonymous session",
+      icon: Database,
+    },
+    {
+      label: "Questions answered",
+      value: queryCount,
+      foot: "Validated read-only SQL",
+      icon: CheckCircle2,
+    },
+    {
+      label: "Reports generated",
+      value: reportCount,
+      foot: "Exportable as PDF & HTML",
+      icon: FileText,
+    },
+    {
+      label: "Rows indexed",
+      value: totalRows,
+      foot: "Across active session tables",
+      icon: Rows3,
+    },
+  ];
+
   return (
-    <section aria-label="Workspace overview">
-      <div className="page-head">
+    <section aria-label="Workspace overview" className="space-y-6">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <div className="eyebrow">Your analytics workspace</div>
-          <h1>Analytics Overview</h1>
-          <p>Upload spreadsheets, inspect inferred schemas, and run validated read-only SQL.</p>
+          <p className="text-xs font-medium uppercase tracking-wider text-primary">
+            Your analytics workspace
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Analytics Overview</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Upload spreadsheets, inspect inferred schemas, and run validated read-only SQL.
+          </p>
         </div>
-        <div className="actions">
-          <button type="button" className="btn" onClick={() => onNavigate("datasets")}>
-            ＋ Upload dataset
-          </button>
-          <button type="button" className="btn primary" onClick={() => onNavigate("analyst")}>
-            ✦ Ask your data
-          </button>
-        </div>
-      </div>
-
-      <div className="metrics">
-        <div className="metric">
-          <div className="metric-top">
-            <span>Datasets uploaded</span>
-            <span className="metric-icon">▤</span>
-          </div>
-          <div className="metric-value">{datasets.length}</div>
-          <div className="metric-foot">
-            <span className="up">Max 3</span> per anonymous session
-          </div>
-        </div>
-        <div className="metric">
-          <div className="metric-top">
-            <span>Questions answered</span>
-            <span className="metric-icon green">✓</span>
-          </div>
-          <div className="metric-value">{queryCount}</div>
-          <div className="metric-foot">Validated read-only SQL</div>
-        </div>
-        <div className="metric">
-          <div className="metric-top">
-            <span>Reports generated</span>
-            <span className="metric-icon amber">📄</span>
-          </div>
-          <div className="metric-value">{reportCount}</div>
-          <div className="metric-foot">Exportable as PDF &amp; HTML</div>
-        </div>
-        <div className="metric">
-          <div className="metric-top">
-            <span>Rows indexed</span>
-            <span className="metric-icon">↗</span>
-          </div>
-          <div className="metric-value">{totalRows.toLocaleString()}</div>
-          <div className="metric-foot">Across active session tables</div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="outline" onClick={() => onNavigate("datasets")}>
+            <Plus className="size-4" />
+            Upload dataset
+          </Button>
+          <Button type="button" onClick={() => onNavigate("analyst")}>
+            <Sparkles className="size-4" />
+            Ask your data
+          </Button>
         </div>
       </div>
 
-      <div className="bottom-grid">
-        <div className="panel">
-          <div className="panel-head">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {metrics.map(({ label, value, foot, icon: Icon }) => (
+          <Card key={label}>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                <span>{label}</span>
+                <span className="flex size-8 items-center justify-center rounded-lg bg-secondary text-foreground">
+                  <Icon className="size-4" />
+                </span>
+              </div>
+              <div className="mt-3 text-2xl font-semibold tracking-tight tabular-nums">
+                <NumberFlow value={value} />
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{foot}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <div>
-              <div className="panel-title">Recent datasets</div>
-              <div className="panel-sub">Your uploaded files in this 24-hour session</div>
+              <CardTitle>Recent datasets</CardTitle>
+              <CardDescription className="mt-1">
+                Your uploaded files in this 24-hour session
+              </CardDescription>
             </div>
-            <button type="button" className="btn" onClick={() => onNavigate("datasets")}>
-              Manage datasets →
-            </button>
-          </div>
-          <div className="table-wrap">
+            <Button type="button" variant="ghost" size="sm" onClick={() => onNavigate("datasets")}>
+              Manage
+              <ArrowRight className="size-3.5" />
+            </Button>
+          </CardHeader>
+          <CardContent className="p-0">
             {datasets.length === 0 ? (
-              <div style={{ padding: "24px 18px" }} className="empty-note">
+              <div className="px-5 py-10 text-center text-sm text-muted-foreground">
                 No datasets uploaded yet. Upload a CSV/XLSX file or load a sample dataset to begin.
               </div>
             ) : (
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Dataset</th>
-                    <th>Tables</th>
-                    <th>Rows</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Dataset</TableHead>
+                    <TableHead>Tables</TableHead>
+                    <TableHead>Rows</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {datasets.map((ds) => {
                     const rows = ds.tables.reduce((s, t) => s + t.row_count, 0);
                     return (
-                      <tr
+                      <TableRow
                         key={ds.id}
-                        style={{ cursor: "pointer" }}
+                        className="cursor-pointer"
                         onClick={() => {
                           onSelectDataset(ds);
                           onNavigate("analyst");
                         }}
                       >
-                        <td>
-                          <div className="file-cell">
-                            <span className="file-icon">▤</span>
-                            {ds.original_filename}
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <FileSpreadsheet className="size-4 text-primary" />
+                            <span>{ds.original_filename}</span>
                           </div>
-                        </td>
-                        <td>{ds.tables.length}</td>
-                        <td>{rows.toLocaleString()}</td>
-                        <td>
-                          <span className="status">{ds.status}</span>
-                        </td>
-                      </tr>
+                        </TableCell>
+                        <TableCell className="tabular-nums">{ds.tables.length}</TableCell>
+                        <TableCell className="tabular-nums">{rows.toLocaleString()}</TableCell>
+                        <TableCell>
+                          <Badge variant="success">{ds.status}</Badge>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="panel">
-          <div className="panel-head">
-            <div>
-              <div className="panel-title">Safety &amp; privacy</div>
-              <div className="panel-sub">Built-in guardrails for every query</div>
-            </div>
-          </div>
-          <div className="activity">
-            <div className="activity-item">
-              <span className="activity-symbol">✦</span>
-              <div className="activity-text">
-                <b>SQLGlot AST Validator</b>
-                <br />
-                Single SELECT only, function &amp; table allowlists
-              </div>
-            </div>
-            <div className="activity-item">
-              <span className="activity-symbol green">✓</span>
-              <div className="activity-text">
-                <b>Read-only execution</b>
-                <br />
-                Dedicated PostgreSQL role with row &amp; time limits
-              </div>
-            </div>
-            <div className="activity-item">
-              <span className="activity-symbol">◷</span>
-              <div className="activity-text">
-                <b>24-hour auto-deletion</b>
-                <br />
-                Isolated per-dataset schema dropped automatically
-              </div>
-            </div>
-          </div>
-        </div>
+        <SafetyGuardrailsCard />
       </div>
 
-      <form className="quick-ask" onSubmit={handleQuickSubmit}>
-        <div className="spark" aria-hidden="true">
-          ✦
-        </div>
-        <div className="quick-copy">
-          <strong>Have a question about your data?</strong>
-          <p>Ask in plain English. Get validated SQL, tables, charts, and insights in seconds.</p>
-        </div>
-        <div className="ask-box">
-          <input
-            id="quick-question-input"
-            name="quickQuestion"
-            type="text"
-            value={quickQuestion}
-            onChange={(e) => setQuickQuestion(e.target.value)}
-            placeholder="e.g. Which region had the highest sales?"
-            aria-label="Quick question"
-          />
-          <button type="submit" aria-label="Ask">
-            ➜
-          </button>
-        </div>
-      </form>
+      <Card className="border-primary/20 bg-card">
+        <CardContent className="p-5">
+          <form
+            className="flex flex-col gap-4 md:flex-row md:items-center"
+            onSubmit={handleQuickSubmit}
+          >
+            <div className="flex items-center gap-3 md:flex-1">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Sparkles className="size-5" />
+              </div>
+              <div>
+                <div className="text-sm font-semibold">Have a question about your data?</div>
+                <p className="text-xs text-muted-foreground">
+                  Ask in plain English. Get validated SQL, tables, charts, and insights in seconds.
+                </p>
+              </div>
+            </div>
+            <div className="flex w-full gap-2 md:max-w-md">
+              <Input
+                id="quick-question-input"
+                name="quickQuestion"
+                type="text"
+                value={quickQuestion}
+                onChange={(e) => setQuickQuestion(e.target.value)}
+                placeholder="e.g. Which region had the highest sales?"
+                aria-label="Quick question"
+              />
+              <Button type="submit" aria-label="Ask">
+                Ask
+                <ArrowRight className="size-4" />
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </section>
   );
 }

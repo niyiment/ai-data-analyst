@@ -1,7 +1,22 @@
 "use client";
 
+import NumberFlow from "@number-flow/react";
+import {
+  BarChart3,
+  CheckCircle2,
+  Database,
+  FileText,
+  LayoutDashboard,
+  Menu,
+  Settings,
+  Sparkles,
+  Trash2,
+  X,
+} from "lucide-react";
 import { useState, type ReactNode } from "react";
+import { Button } from "@/components/ui/button";
 import type { SessionInfo } from "@/features/sessions";
+import { cn } from "@/lib/utils";
 
 export type WorkspacePage =
   | "overview"
@@ -19,6 +34,14 @@ const PAGE_LABELS: Record<WorkspacePage, string> = {
   evaluation: "Evaluation",
   settings: "Settings",
 };
+
+const NAV_ITEMS: { id: WorkspacePage; label: string; icon: typeof LayoutDashboard; badge?: string }[] = [
+  { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "analyst", label: "AI Analyst", icon: Sparkles, badge: "SQL" },
+  { id: "datasets", label: "Datasets", icon: Database },
+  { id: "reports", label: "Reports", icon: FileText },
+  { id: "evaluation", label: "Evaluation", icon: CheckCircle2 },
+];
 
 interface WorkspaceShellProps {
   activePage: WorkspacePage;
@@ -52,150 +75,159 @@ export function WorkspaceShell({
     : "Starting…";
 
   return (
-    <div className="app">
-      <aside className={`sidebar${menuOpen ? " open" : ""}`}>
-        <div className="brand">
-          <span className="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-              <path d="M4 18V9m5 9V5m5 13v-6m5 6V3" />
-            </svg>
-          </span>
-          InsightAI
+    <div className="flex min-h-screen bg-background">
+      {menuOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-slate-950/50 backdrop-blur-xs lg:hidden"
+          onClick={() => setMenuOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-sidebar text-sidebar-foreground transition-transform duration-200 lg:static lg:translate-x-0",
+          menuOpen ? "translate-x-0" : "-translate-x-full",
+        )}
+      >
+        <div className="flex h-14 items-center justify-between border-b border-sidebar-border px-4">
+          <div className="flex items-center gap-2.5 font-semibold tracking-tight">
+            <span className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <BarChart3 className="size-4" />
+            </span>
+            <span className="text-sm">InsightAI</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMenuOpen(false)}
+            className="rounded-md p-1 text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground lg:hidden"
+            aria-label="Close navigation"
+          >
+            <X className="size-4" />
+          </button>
         </div>
 
-        <div className="workspace-label">Workspace</div>
-        <nav className="nav" aria-label="Main navigation">
-          <button
-            type="button"
-            className={activePage === "overview" ? "active" : ""}
-            onClick={() => go("overview")}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <rect x="3" y="3" width="8" height="8" rx="2" />
-              <rect x="13" y="3" width="8" height="5" rx="2" />
-              <rect x="13" y="10" width="8" height="11" rx="2" />
-              <rect x="3" y="13" width="8" height="8" rx="2" />
-            </svg>
-            Overview
-          </button>
-          <button
-            type="button"
-            className={activePage === "analyst" ? "active" : ""}
-            onClick={() => go("analyst")}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <path d="M4 5h16M4 12h10M4 19h7" />
-              <circle cx="18" cy="15" r="3" />
-              <path d="m20.2 17.2 1.8 1.8" />
-            </svg>
-            AI Analyst<span className="count">SQL</span>
-          </button>
-          <button
-            type="button"
-            className={activePage === "datasets" ? "active" : ""}
-            onClick={() => go("datasets")}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <ellipse cx="12" cy="5" rx="8" ry="3" />
-              <path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" />
-            </svg>
-            Datasets
-          </button>
-          <button
-            type="button"
-            className={activePage === "reports" ? "active" : ""}
-            onClick={() => go("reports")}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <path d="M6 3h9l4 4v14H6z" />
-              <path d="M14 3v5h5M9 13h7M9 17h7" />
-            </svg>
-            Reports
-          </button>
-          <button
-            type="button"
-            className={activePage === "evaluation" ? "active" : ""}
-            onClick={() => go("evaluation")}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <path d="M9 11l3 3L22 4" />
-              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-            </svg>
-            Evaluation
-          </button>
-        </nav>
-
-        <div className="side-bottom">
-          <div className="workspace-label">Configuration</div>
-          <nav className="nav" aria-label="Settings navigation">
-            <button
-              type="button"
-              className={activePage === "settings" ? "active" : ""}
-              onClick={() => go("settings")}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.7 1.7-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.2h-2.4v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1L8 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H6.7v-2.4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L8 8.6l1.7-1.7.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5v-.2h2.4v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 1.7 1.7-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2V14h-.2a1.7 1.7 0 0 0-1.5 1z" />
-              </svg>
-              AI Settings
-            </button>
+        <div className="flex-1 overflow-y-auto px-3 py-4">
+          <div className="mb-2 px-2 text-[11px] font-medium uppercase tracking-wider text-sidebar-muted">
+            Workspace
+          </div>
+          <nav className="space-y-1" aria-label="Main navigation">
+            {NAV_ITEMS.map(({ id, label, icon: Icon, badge }) => {
+              const active = activePage === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => go(id)}
+                  className={cn(
+                    "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors cursor-pointer",
+                    active
+                      ? "bg-sidebar-accent text-sidebar-foreground"
+                      : "text-sidebar-muted hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+                  )}
+                >
+                  <Icon className="size-4 shrink-0" />
+                  <span className="flex-1 text-left">{label}</span>
+                  {badge && (
+                    <span className="rounded bg-primary/20 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-blue-300">
+                      {badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </nav>
 
-          <div className="usage">
-            <div className="usage-top">
-              <span>Session quota</span>
-              <span>{usagePct}%</span>
+          <div className="mt-6 mb-2 px-2 text-[11px] font-medium uppercase tracking-wider text-sidebar-muted">
+            Configuration
+          </div>
+          <nav className="space-y-1" aria-label="Settings navigation">
+            <button
+              type="button"
+              onClick={() => go("settings")}
+              className={cn(
+                "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors cursor-pointer",
+                activePage === "settings"
+                  ? "bg-sidebar-accent text-sidebar-foreground"
+                  : "text-sidebar-muted hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+              )}
+            >
+              <Settings className="size-4 shrink-0" />
+              <span>AI Settings</span>
+            </button>
+          </nav>
+        </div>
+
+        <div className="space-y-3 border-t border-sidebar-border p-3">
+          <div className="rounded-lg bg-sidebar-accent/60 p-3">
+            <div className="flex items-center justify-between text-xs font-medium">
+              <span className="text-sidebar-foreground">Session quota</span>
+              <span className="font-mono text-sidebar-muted">
+                <NumberFlow value={usagePct} suffix="%" />
+              </span>
             </div>
-            <p>{queryCount} of 30 hourly queries used</p>
-            <div className="bar">
-              <span style={{ width: `${usagePct}%` }} />
+            <p className="mt-1 text-[11px] text-sidebar-muted">
+              {queryCount} of 30 hourly queries used
+            </p>
+            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+              <div
+                className="h-full rounded-full bg-blue-500 transition-all duration-300"
+                style={{ width: `${usagePct}%` }}
+              />
             </div>
           </div>
 
-          <div className="profile">
-            <div className="avatar">AI</div>
-            <div>
-              <strong>Anonymous session</strong>
-              <small>Auto-deletes {expiresLabel}</small>
+          <div className="flex items-center gap-2.5 px-1">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold text-blue-300">
+              AI
+            </div>
+            <div className="min-w-0">
+              <div className="truncate text-xs font-medium text-sidebar-foreground">
+                Anonymous session
+              </div>
+              <div className="truncate text-[11px] text-sidebar-muted">
+                Auto-deletes {expiresLabel}
+              </div>
             </div>
           </div>
         </div>
       </aside>
 
-      <main className="main">
-        <header className="topbar">
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <button
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-card/85 px-4 backdrop-blur-md lg:px-6">
+          <div className="flex items-center gap-3">
+            <Button
               type="button"
-              className="icon-btn mobile-menu"
+              variant="ghost"
+              size="icon"
+              className="lg:hidden"
               aria-label="Toggle menu"
               onClick={() => setMenuOpen((prev) => !prev)}
             >
-              ☰
-            </button>
-            <div className="crumb">
-              Workspace <span style={{ padding: "0 6px", color: "#c0c8d4" }}>/</span>{" "}
-              <b>{PAGE_LABELS[activePage]}</b>
+              <Menu className="size-4" />
+            </Button>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">Workspace</span>
+              <span className="text-border">/</span>
+              <span className="font-medium text-foreground">{PAGE_LABELS[activePage]}</span>
             </div>
           </div>
 
-          <div className="top-actions">
-            <button
-              type="button"
-              className="btn danger"
-              disabled={deleting || !session}
-              onClick={onDeleteSession}
-            >
-              {deleting ? "Deleting…" : "Delete my data now"}
-            </button>
-            <div className="top-avatar" title="Anonymous session">
-              AI
-            </div>
-          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="text-destructive hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive"
+            disabled={deleting || !session}
+            onClick={onDeleteSession}
+          >
+            <Trash2 className="size-3.5" />
+            {deleting ? "Deleting…" : "Delete my data"}
+          </Button>
         </header>
 
-        <div className="content">{children}</div>
-      </main>
+        <main className="mx-auto w-full max-w-6xl flex-1 p-4 lg:p-8">{children}</main>
+      </div>
     </div>
   );
 }

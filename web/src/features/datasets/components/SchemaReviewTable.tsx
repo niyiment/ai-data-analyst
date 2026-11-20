@@ -1,6 +1,18 @@
 "use client";
 
+import { ChevronDown, Table2 } from "lucide-react";
 import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { ALLOWED_PG_TYPES, type ColumnInfo, type TableInfo } from "../types/dataset";
 
 interface SchemaReviewTableProps {
@@ -19,48 +31,55 @@ export function SchemaReviewTable({ table, onUpdateColumn }: SchemaReviewTablePr
   }
 
   return (
-    <section className="panel" aria-label={`Schema for ${table.table_name}`} style={{ marginTop: "18px" }}>
-      <div className="panel-head">
-        <div>
-          <div className="panel-title">Table: {table.table_name}</div>
-          <div className="panel-sub">
-            {table.row_count.toLocaleString()} rows · {table.columns.length} columns
+    <Card aria-label={`Schema for ${table.table_name}`}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+        <div className="flex items-center gap-2.5">
+          <span className="flex size-8 items-center justify-center rounded-lg bg-secondary text-foreground">
+            <Table2 className="size-4" />
+          </span>
+          <div>
+            <CardTitle className="font-mono">{table.table_name}</CardTitle>
+            <CardDescription className="mt-0.5">
+              {table.row_count.toLocaleString()} rows · {table.columns.length} columns
+            </CardDescription>
           </div>
         </div>
-        <span className="status">Ready</span>
-      </div>
+        <Badge variant="success">Ready</Badge>
+      </CardHeader>
 
-      <div className="table-wrap">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Original</th>
-              <th>Column Name</th>
-              <th>Type</th>
-              <th>Nullable</th>
-              <th>Samples</th>
-            </tr>
-          </thead>
-          <tbody>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Original</TableHead>
+              <TableHead>Column Name</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Nullable</TableHead>
+              <TableHead>Samples</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {table.columns.map((col) => (
-              <tr key={col.id}>
-                <td>{col.original_name}</td>
-                <td>
-                  <input
+              <TableRow key={col.id}>
+                <TableCell className="text-muted-foreground">{col.original_name}</TableCell>
+                <TableCell>
+                  <Input
                     id={`col-name-${col.id}`}
                     name={`col_name_${col.id}`}
-                    className="select"
+                    className="h-8 max-w-[200px] font-mono text-xs"
                     aria-label={`Column name for ${col.original_name}`}
                     value={draftNames[col.id] ?? col.column_name}
-                    onChange={(e) => setDraftNames((prev) => ({ ...prev, [col.id]: e.target.value }))}
+                    onChange={(e) =>
+                      setDraftNames((prev) => ({ ...prev, [col.id]: e.target.value }))
+                    }
                     onBlur={() => handleNameBlur(col)}
                   />
-                </td>
-                <td>
+                </TableCell>
+                <TableCell>
                   <select
                     id={`col-type-${col.id}`}
                     name={`col_type_${col.id}`}
-                    className="select"
+                    className="h-8 rounded-md border border-input bg-card px-2.5 font-mono text-xs text-foreground shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     aria-label={`Type for ${col.column_name}`}
                     value={col.pg_type}
                     onChange={(e) => onUpdateColumn(col.id, { pg_type: e.target.value })}
@@ -71,42 +90,53 @@ export function SchemaReviewTable({ table, onUpdateColumn }: SchemaReviewTablePr
                       </option>
                     ))}
                   </select>
-                </td>
-                <td>{col.nullable ? "Yes" : "No"}</td>
-                <td>{col.sample_values.slice(0, 3).map(String).join(", ")}</td>
-              </tr>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={col.nullable ? "secondary" : "outline"}>
+                    {col.nullable ? "Yes" : "No"}
+                  </Badge>
+                </TableCell>
+                <TableCell className="max-w-[240px] truncate font-mono text-xs text-muted-foreground">
+                  {col.sample_values.slice(0, 3).map(String).join(", ")}
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </Table>
 
-      {table.preview_rows.length > 0 && (
-        <details style={{ padding: "12px 18px 16px", borderTop: "1px solid #f0f2f6" }}>
-          <summary style={{ cursor: "pointer", fontSize: "11px", fontWeight: 650, color: "#315eea" }}>
-            Preview first {table.preview_rows.length} rows
-          </summary>
-          <div className="table-wrap" style={{ marginTop: "10px" }}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  {table.columns.map((col) => (
-                    <th key={col.id}>{col.column_name}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {table.preview_rows.map((row, idx) => (
-                  <tr key={idx}>
+        {table.preview_rows.length > 0 && (
+          <details className="group border-t border-border px-5 py-3">
+            <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-medium text-primary hover:underline">
+              <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" />
+              Preview first {table.preview_rows.length} rows
+            </summary>
+            <div className="mt-3 overflow-hidden rounded-lg border border-border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
                     {table.columns.map((col) => (
-                      <td key={col.id}>{String(row[col.column_name] ?? "")}</td>
+                      <TableHead key={col.id} className="font-mono">
+                        {col.column_name}
+                      </TableHead>
                     ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </details>
-      )}
-    </section>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {table.preview_rows.map((row, idx) => (
+                    <TableRow key={idx}>
+                      {table.columns.map((col) => (
+                        <TableCell key={col.id} className="font-mono text-xs">
+                          {String(row[col.column_name] ?? "")}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </details>
+        )}
+      </CardContent>
+    </Card>
   );
 }

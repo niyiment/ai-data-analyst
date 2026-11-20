@@ -1,6 +1,10 @@
 "use client";
 
+import { Database, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { EvaluationView } from "@/features/evaluation";
 import { QueryPanel } from "@/features/query";
 import { ReportsView, type ReportSummary } from "@/features/reports";
@@ -22,7 +26,6 @@ export function DatasetWorkspace() {
   const [queryCount, setQueryCount] = useState(0);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -32,7 +35,7 @@ export function DatasetWorkspace() {
         try {
           setSession(await createSession());
         } catch (err) {
-          setError(err instanceof Error ? err.message : "Could not start session.");
+          toast.error(err instanceof Error ? err.message : "Could not start session.");
         }
       }
     })();
@@ -45,11 +48,12 @@ export function DatasetWorkspace() {
 
   async function handleUpload(file: File) {
     setBusy(true);
-    setError(null);
     try {
-      addDataset(await uploadDatasetFile(file));
+      const loaded = await uploadDatasetFile(file);
+      addDataset(loaded);
+      toast.success(`Uploaded ${loaded.original_filename}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed.");
+      toast.error(err instanceof Error ? err.message : "Upload failed.");
     } finally {
       setBusy(false);
     }
@@ -57,11 +61,12 @@ export function DatasetWorkspace() {
 
   async function handleLoadSample() {
     setBusy(true);
-    setError(null);
     try {
-      addDataset(await loadSampleDataset("retail_sales"));
+      const loaded = await loadSampleDataset("retail_sales");
+      addDataset(loaded);
+      toast.success("Loaded Retail Sales sample dataset");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load sample dataset.");
+      toast.error(err instanceof Error ? err.message : "Could not load sample dataset.");
     } finally {
       setBusy(false);
     }
@@ -72,7 +77,6 @@ export function DatasetWorkspace() {
     payload: { column_name?: string; pg_type?: string },
   ) {
     if (!dataset) return;
-    setError(null);
     try {
       const updated = await updateDatasetColumn(dataset.id, columnId, payload);
       const next: DatasetDetail = {
@@ -83,14 +87,14 @@ export function DatasetWorkspace() {
         })),
       };
       addDataset(next);
+      toast.success(`Updated column ${updated.column_name}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not update column.");
+      toast.error(err instanceof Error ? err.message : "Could not update column.");
     }
   }
 
   async function handleDeleteSession() {
     setBusy(true);
-    setError(null);
     try {
       await deleteMySession();
       setDataset(null);
@@ -98,8 +102,9 @@ export function DatasetWorkspace() {
       setReports([]);
       setQueryCount(0);
       setSession(await createSession());
+      toast.success("Session data deleted and fresh session started");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not delete session.");
+      toast.error(err instanceof Error ? err.message : "Could not delete session.");
     } finally {
       setBusy(false);
     }
@@ -117,12 +122,6 @@ export function DatasetWorkspace() {
       onDeleteSession={() => void handleDeleteSession()}
       queryCount={queryCount}
     >
-      {error && (
-        <div role="alert" className="alert-error">
-          {error}
-        </div>
-      )}
-
       {activePage === "overview" && (
         <OverviewView
           datasets={datasets}
@@ -151,37 +150,62 @@ export function DatasetWorkspace() {
             onViewSchema={() => setActivePage("datasets")}
           />
         ) : (
-          <div className="panel" style={{ padding: "36px", textAlign: "center" }}>
-            <h2 style={{ marginTop: 0 }}>No dataset selected</h2>
-            <p className="empty-note">Upload a CSV/XLSX file or load the Retail Sales sample first.</p>
-            <div className="actions" style={{ justifyContent: "center", marginTop: "16px" }}>
-              <button type="button" className="btn primary" onClick={() => setActivePage("datasets")}>
-                Go to Datasets
-              </button>
-              <button type="button" className="btn" disabled={busy} onClick={() => void handleLoadSample()}>
-                Load Retail Sales sample
-              </button>
-            </div>
-          </div>
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-14 text-center">
+              <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                <Database className="size-6" />
+              </div>
+              <h2 className="text-lg font-semibold">No dataset selected</h2>
+              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                Upload a CSV or Excel file, or load the Retail Sales sample to start asking
+                questions.
+              </p>
+              <div className="mt-5 flex flex-wrap justify-center gap-2.5">
+                <Button type="button" onClick={() => setActivePage("datasets")}>
+                  <Database className="size-4" />
+                  Go to Datasets
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => void handleLoadSample()}
+                >
+                  <Sparkles className="size-4" />
+                  Load Retail Sales sample
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         ))}
 
       {activePage === "datasets" && (
-        <section aria-label="Datasets library">
-          <div className="page-head">
-            <div>
-              <div className="eyebrow">Your data library</div>
-              <h1>Datasets</h1>
-              <p>Upload CSV or Excel files, inspect inferred schemas, and override column types.</p>
-            </div>
+        <section aria-label="Datasets library" className="space-y-6">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wider text-primary">
+              Your data library
+            </p>
+            <h1 className="mt-1 text-2xl font-semibold tracking-tight">Datasets</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Upload CSV or Excel files, inspect inferred schemas, and override column types.
+            </p>
           </div>
-          <UploadPanel busy={busy} onUploadFile={handleUpload} onLoadSample={() => void handleLoadSample()} />
+          <UploadPanel
+            busy={busy}
+            onUploadFile={handleUpload}
+            onLoadSample={() => void handleLoadSample()}
+          />
           {dataset && (
-            <section aria-label="Schema review" style={{ marginTop: "24px" }}>
-              <h2 style={{ fontSize: "16px", margin: "0 0 6px" }}>
-                Schema Review: {dataset.original_filename}
+            <section aria-label="Schema review" className="space-y-4">
+              <h2 className="text-base font-semibold tracking-tight">
+                Schema Review: <span className="font-mono text-primary">{dataset.original_filename}</span>
               </h2>
               {dataset.tables.map((table) => (
-                <SchemaReviewTable key={table.id} table={table} onUpdateColumn={handleUpdateColumn} />
+                <SchemaReviewTable
+                  key={table.id}
+                  table={table}
+                  onUpdateColumn={handleUpdateColumn}
+                />
               ))}
             </section>
           )}
