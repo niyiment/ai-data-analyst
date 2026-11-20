@@ -44,14 +44,11 @@ def build_llm_client(
             model=(model or settings.claude_model).strip(),
         )
     raise ValidationRejected(
-        f"Unsupported LLM provider '{chosen}'. "
-        "Use 'ollama', 'ollama_cloud', 'gemini', or 'claude'."
+        f"Unsupported LLM provider '{chosen}'. Use 'ollama', 'ollama_cloud', 'gemini', or 'claude'."
     )
 
 
-def describe_llm(
-    settings: Settings, provider: str | None = None, model: str | None = None
-) -> str:
+def describe_llm(settings: Settings, provider: str | None = None, model: str | None = None) -> str:
     """Return a 'provider:model' label for reporting which model produced a result."""
     chosen = (provider or settings.llm_provider or "ollama").strip().lower()
     defaults = {

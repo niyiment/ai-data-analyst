@@ -8,6 +8,7 @@ from types import ModuleType
 import pytest
 
 from app.evaluation.golden_sets import GOLDEN_SETS
+from app.evaluation.schemas import GoldenQuestion
 from app.query.validator.pipeline import validate_sql
 from app.query.validator.types import ValidationContext
 
@@ -49,13 +50,11 @@ def test_only_ambiguity_questions_expect_clarification() -> None:
 
 
 @pytest.mark.parametrize("question", RETAIL.questions, ids=lambda q: q.id)
-def test_reference_sql_passes_the_production_validator(question: object) -> None:
+def test_reference_sql_passes_the_production_validator(question: GoldenQuestion) -> None:
     ctx = ValidationContext(
         allowed_schema=RETAIL.demo_schema, allowed_tables=RETAIL.allowed_tables()
     )
-    sql = getattr(question, "reference_sql")
-
-    result = validate_sql(sql, ctx)
+    result = validate_sql(question.reference_sql, ctx)
 
     assert result.is_valid, [v.message for v in result.violations]
 
@@ -63,7 +62,7 @@ def test_reference_sql_passes_the_production_validator(question: object) -> None
 def test_schema_summary_matches_migration_tables_and_columns() -> None:
     migration = _load_migration()
 
-    assert migration.DEMO_SCHEMA == RETAIL.demo_schema
+    assert RETAIL.demo_schema == migration.DEMO_SCHEMA
     assert set(migration.DEMO_COLUMNS) == set(RETAIL.table_names)
     for table, columns in migration.DEMO_COLUMNS.items():
         assert f"Table {table} " in RETAIL.schema_summary

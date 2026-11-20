@@ -143,4 +143,3 @@ class EvaluationService:
             failure_categories=dict(failures),
             results=results,
         )
-

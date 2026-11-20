@@ -40,6 +40,4 @@ class QuotaGuardedLLMClient:
 @lru_cache(maxsize=1)
 def get_quota_guard() -> QuotaGuard:
     """Return the process-wide daily LLM call budget."""
-    return QuotaGuard(
-        max_calls=get_settings().llm_daily_call_budget, window_seconds=_DAY_SECONDS
-    )
+    return QuotaGuard(max_calls=get_settings().llm_daily_call_budget, window_seconds=_DAY_SECONDS)

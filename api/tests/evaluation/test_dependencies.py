@@ -19,9 +19,7 @@ class NullLLM:
 
 def test_eval_service_uses_database_repository_and_llm_runner() -> None:
     settings = Settings(llm_provider="gemini", gemini_model="gemini-2.5-flash")
-    service = get_eval_service(
-        db=cast(AsyncSession, object()), settings=settings, llm=NullLLM()
-    )
+    service = get_eval_service(db=cast(AsyncSession, object()), settings=settings, llm=NullLLM())
 
     assert isinstance(service.repository, SqlEvalRepository)
     assert isinstance(service.build_runner(GOLDEN_SETS["retail_sales"]), LlmEvalRunner)

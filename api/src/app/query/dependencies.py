@@ -21,9 +21,7 @@ from app.sessions.schemas import SessionRecord
 @lru_cache(maxsize=1)
 def get_question_rate_limiter() -> RateLimiter:
     """Return the shared per-session hourly question limiter."""
-    return RateLimiter(
-        limit=get_settings().questions_per_session_per_hour, window_seconds=3600
-    )
+    return RateLimiter(limit=get_settings().questions_per_session_per_hour, window_seconds=3600)
 
 
 def enforce_question_rate_limit(

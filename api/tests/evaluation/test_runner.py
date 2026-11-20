@@ -19,9 +19,7 @@ REFERENCE = "SELECT region, SUM(revenue) AS total FROM sales GROUP BY region"
 class FakeLLM:
     """Returns a scripted plan and SQL, or raises."""
 
-    def __init__(
-        self, sql: str = REFERENCE, *, clarify: bool = False, fail: bool = False
-    ) -> None:
+    def __init__(self, sql: str = REFERENCE, *, clarify: bool = False, fail: bool = False) -> None:
         self._sql, self._clarify, self._fail = sql, clarify, fail
         self.calls = 0
 
