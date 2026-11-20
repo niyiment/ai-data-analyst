@@ -31,6 +31,8 @@ export function DatasetWorkspace() {
   const [queryCount, setQueryCount] = useState(0);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Dataset actions need the session cookie; enabling them earlier races session creation.
+  const ready = Boolean(session) && !busy;
 
   useEffect(() => {
     void (async () => {
@@ -173,7 +175,7 @@ export function DatasetWorkspace() {
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={busy}
+                  disabled={!ready}
                   onClick={() => void handleLoadSample()}
                 >
                   <Sparkles className="size-4" />
@@ -196,7 +198,7 @@ export function DatasetWorkspace() {
             </p>
           </div>
           <UploadPanel
-            busy={busy}
+            busy={!ready}
             onUploadFile={handleUpload}
             onLoadSample={() => void handleLoadSample()}
           />

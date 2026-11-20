@@ -145,3 +145,34 @@ describe("DatasetWorkspace", () => {
     );
   });
 });
+
+describe("DatasetWorkspace session readiness", () => {
+  it("keeps dataset actions disabled until the session exists", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, init?: RequestInit) => {
+        if (url === "/api/v1/sessions/me") {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({ code: "SESSION_EXPIRED", message: "x", request_id: "r" }),
+              {
+                status: 401,
+              },
+            ),
+          );
+        }
+        if (url === "/api/v1/sessions" && init?.method === "POST") {
+          return new Promise<Response>(() => {}); // session creation still in flight
+        }
+        return Promise.resolve(new Response("{}", { status: 404 }));
+      }),
+    );
+    render(<DatasetWorkspace />);
+    expect(await screen.findByText(/auto-deletes starting/i)).toBeInTheDocument();
+
+    await userEvent.click(nav(/datasets/i));
+
+    expect(screen.getByRole("button", { name: /retail sales sample|loading/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /choose file/i })).toBeDisabled();
+  });
+});

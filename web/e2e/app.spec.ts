@@ -1,6 +1,17 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
+// Surface failing API calls in the test output; the UI only shows them as short-lived toasts.
+test.beforeEach(({ page }) => {
+  page.on("response", (response) => {
+    // A fresh browser has no session yet, so the first GET /sessions/me is expected to be 401.
+    const expected = response.url().endsWith("/api/v1/sessions/me") && response.status() === 401;
+    if (response.url().includes("/api/") && response.status() >= 400 && !expected) {
+      console.log(`API ${response.status()} ${response.request().method()} ${response.url()}`);
+    }
+  });
+});
+
 function nav(page: Page, name: RegExp) {
   return page.getByRole("navigation", { name: /workspace/i }).getByRole("button", { name });
 }
@@ -90,7 +101,7 @@ test.describe("evaluation", () => {
       .selectOption("retail_orders");
     await page.getByRole("button", { name: /run evaluation/i }).click();
 
-    await expect(page.getByRole("status")).toContainText(/answered d+ of 26/i);
+    await expect(page.getByRole("status")).toContainText(/answered \d+ of 26/i);
     await expect(page.getByRole("status")).toBeHidden({ timeout: 90_000 });
     await expect(page.getByRole("cell", { name: "ro-26" })).toBeVisible();
     await expect(page.getByText(/of 26 passed/i)).toBeVisible();
