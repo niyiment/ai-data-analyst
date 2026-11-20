@@ -109,11 +109,15 @@ def _session() -> SessionRecord:
 
 
 def _ctx() -> DatasetQueryContext:
+    """Two tables, so these tests exercise the planned path (see test_plan_skip.py)."""
     return DatasetQueryContext(
         dataset_id=uuid.uuid4(),
         schema_name="ds_1111222233334444",
-        table_names=frozenset({"retail_sales"}),
-        schema_summary="Table retail_sales (8 rows): region (text), revenue (double precision)",
+        table_names=frozenset({"retail_sales", "regions"}),
+        schema_summary=(
+            "Table retail_sales (8 rows): region (text), revenue (double precision)\n"
+            "Table regions (4 rows): region (text), manager (text)"
+        ),
     )
 
 

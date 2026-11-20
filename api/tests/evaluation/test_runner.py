@@ -53,7 +53,7 @@ class FakeExecutor:
         return ExecutionResult(columns=cols, rows=rows, row_count=len(rows), truncated=False)
 
 
-def _set(**question_overrides: Any) -> GoldenSet:
+def _set(tables: tuple[str, ...] = ("sales", "regions"), **question_overrides: Any) -> GoldenSet:
     question = GoldenQuestion(
         id="q1",
         question="Revenue by region?",
@@ -66,6 +66,7 @@ def _set(**question_overrides: Any) -> GoldenSet:
         demo_schema="demo_sales",
         description="d",
         schema_summary="Table sales (2 rows): region (text), revenue (numeric)",
+        table_names=list(tables),
         questions=[question],
     )
 
@@ -161,3 +162,15 @@ async def test_missed_clarification_is_wrong() -> None:
 
     assert result.outcome == EvalOutcome.WRONG
     assert result.failure_category == "missed_clarification"
+
+
+@pytest.mark.asyncio
+async def test_simple_single_table_question_skips_the_plan_stage() -> None:
+    llm = FakeLLM(sql="SELECT region, SUM(revenue) AS total FROM sales GROUP BY 1")
+    runner = LlmEvalRunner(_set(tables=("sales",)), llm=llm, executor=FakeExecutor({"sales": ROWS}))
+
+    result = await runner.execute_question("q1")
+
+    assert result.outcome == EvalOutcome.CORRECT
+    assert result.plan_skipped is True
+    assert llm.calls == 1

@@ -109,3 +109,33 @@ async def test_get_unknown_run_raises_not_found() -> None:
     )
     with pytest.raises(NotFound):
         await service.get_run(uuid4())
+
+
+@pytest.mark.asyncio
+async def test_run_reports_accuracy_separately_for_planned_and_direct_paths() -> None:
+    golden_set = GOLDEN_SETS["retail_sales"]
+    outcomes = {
+        q.id: QuestionEvalExecution(
+            outcome=EvalOutcome.CORRECT if idx % 2 == 0 else EvalOutcome.WRONG,
+            latency_ms=10,
+            plan_skipped=idx < 4,
+        )
+        for idx, q in enumerate(golden_set.questions)
+    }
+    service = EvaluationService(
+        repo=InMemoryEvalRepository(), runner_factory=_factory(FakeEvalRunner(outcomes))
+    )
+
+    run = await service.run_evaluation("retail_sales")
+
+    direct = [o for o in outcomes.values() if o.plan_skipped]
+    planned = [o for o in outcomes.values() if not o.plan_skipped]
+
+    def acc(items: list[QuestionEvalExecution]) -> float:
+        return sum(o.outcome == EvalOutcome.CORRECT for o in items) / len(items)
+
+    assert run.accuracy_by_path == {
+        "direct": pytest.approx(acc(direct)),
+        "planned": pytest.approx(acc(planned)),
+    }
+    assert all(r.plan_skipped == outcomes[r.question_id].plan_skipped for r in run.results)
