@@ -182,3 +182,43 @@ async def test_update_column_sanitizes_name_and_validates_type() -> None:
             col_id,
             ColumnUpdateRequest(pg_type="drop table users"),
         )
+
+
+async def test_unknown_sample_raises_not_found() -> None:
+    service = DatasetService(FakeDatasetRepository())
+
+    with pytest.raises(NotFound):
+        await service.load_sample(_make_session(), "no_such_sample")
+
+
+async def test_update_of_missing_column_raises_not_found() -> None:
+    service = DatasetService(FakeDatasetRepository())
+    owner = _make_session()
+    detail = await service.load_sample(owner, "retail_sales")
+
+    with pytest.raises(NotFound):
+        await service.update_column(
+            owner, detail.id, uuid.uuid4(), ColumnUpdateRequest(column_name="x")
+        )
+
+
+async def test_delete_then_get_and_delete_again_raise_not_found() -> None:
+    service = DatasetService(FakeDatasetRepository())
+    owner = _make_session()
+    detail = await service.load_sample(owner, "retail_sales")
+
+    await service.delete_dataset(owner, detail.id)
+
+    with pytest.raises(NotFound):
+        await service.get_dataset(owner, detail.id)
+    with pytest.raises(NotFound):
+        await service.delete_dataset(owner, detail.id)
+
+
+async def test_list_datasets_only_returns_the_callers_datasets() -> None:
+    service = DatasetService(FakeDatasetRepository())
+    owner, other = _make_session(), _make_session()
+    await service.load_sample(owner, "retail_sales")
+
+    assert (await service.list_datasets(owner)).total == 1
+    assert (await service.list_datasets(other)).total == 0
