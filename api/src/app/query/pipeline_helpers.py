@@ -1,6 +1,7 @@
 """Prompt construction and run-record builders for QueryService."""
 
 import json
+import re
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
@@ -22,6 +23,21 @@ class RunMeta:
     plan: QueryPlan | None
     timings: dict[str, int]
     created_at: datetime
+
+
+_VAGUE_WORDING = re.compile(
+    r"\b(best|worst|recent(ly)?|perform(s|ing|ance)?|good|bad|well|interesting|important"
+    r"|trend(s|ing)?|insights?)\b|\b(top|bottom)\b(?!\s+\d)",
+    re.IGNORECASE,
+)
+
+
+def should_skip_plan(table_names: frozenset[str], question: str) -> bool:
+    """Skip the plan stage for simple single-table questions (PRD FR-05, ADR-0006).
+
+    Vague wording keeps the plan stage so the model can ask a clarifying question.
+    """
+    return len(table_names) == 1 and _VAGUE_WORDING.search(question) is None
 
 
 def build_user_prompt(

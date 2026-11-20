@@ -101,6 +101,7 @@ class EvaluationService:
                     tokens_in=exec_res.tokens_in,
                     tokens_out=exec_res.tokens_out,
                     failure_category=exec_res.failure_category,
+                    plan_skipped=exec_res.plan_skipped,
                 )
             )
         return await self._repo.save_run(self._build_detail(set_name, started_at, results))
@@ -141,5 +142,17 @@ class EvaluationService:
             total_tokens_in=sum(r.tokens_in for r in results),
             total_tokens_out=sum(r.tokens_out for r in results),
             failure_categories=dict(failures),
+            accuracy_by_path=_accuracy_by_path(results),
             results=results,
         )
+
+
+def _accuracy_by_path(results: list[EvalQuestionResult]) -> dict[str, float]:
+    """Accuracy for 'direct' (plan skipped) and 'planned' questions, for paths that ran."""
+    by_path: dict[str, list[EvalQuestionResult]] = {}
+    for r in results:
+        by_path.setdefault("direct" if r.plan_skipped else "planned", []).append(r)
+    return {
+        path: sum(r.outcome == EvalOutcome.CORRECT for r in items) / len(items)
+        for path, items in by_path.items()
+    }

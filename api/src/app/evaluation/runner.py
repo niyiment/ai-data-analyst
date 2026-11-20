@@ -14,7 +14,7 @@ from app.evaluation.schemas import (
 from app.llm.port import LLMClient
 from app.prompts.loader import load_prompt
 from app.query.executor import ExecutionResult, QueryExecutor
-from app.query.pipeline_helpers import build_user_prompt
+from app.query.pipeline_helpers import build_user_prompt, should_skip_plan
 from app.query.repository import DatasetQueryContext
 from app.query.schemas import QueryPlan, QueryRequest, SqlGenerationOutput
 from app.query.validator.pipeline import validate_sql
@@ -27,7 +27,7 @@ _Verdict = tuple[EvalOutcome, str | None, str | None]
 class _Generated:
     """What the model produced for one question."""
 
-    plan: QueryPlan
+    plan: QueryPlan | None
     sql: str
 
 
@@ -52,22 +52,24 @@ class LlmEvalRunner:
     async def execute_question(self, question_id: str) -> QuestionEvalExecution:
         """Evaluate one golden question and classify the outcome."""
         q = self._by_id[question_id]
+        skip_plan = should_skip_plan(self._set.allowed_tables(), q.question)
         start = time.perf_counter()
-        outcome, sql, failure = await self._evaluate(q)
+        outcome, sql, failure = await self._evaluate(q, skip_plan)
         return QuestionEvalExecution(
             outcome=outcome,
             generated_sql=sql,
             latency_ms=int((time.perf_counter() - start) * 1000),
             failure_category=failure,
+            plan_skipped=skip_plan,
         )
 
-    async def _evaluate(self, q: GoldenQuestion) -> _Verdict:
+    async def _evaluate(self, q: GoldenQuestion, skip_plan: bool) -> _Verdict:
         try:
-            generated = await self._generate(q)
+            generated = await self._generate(q, skip_plan)
         except Exception:  # any provider failure is an eval error, not a crash
             return EvalOutcome.ERROR, None, "llm_error"
 
-        asked = generated.plan.needs_clarification
+        asked = generated.plan is not None and generated.plan.needs_clarification
         if q.expects_clarification:
             if asked:
                 return EvalOutcome.CORRECT, None, None
@@ -76,14 +78,18 @@ class LlmEvalRunner:
             return EvalOutcome.WRONG, None, "unexpected_clarification"
         return await self._check_sql(q, generated.sql)
 
-    async def _generate(self, q: GoldenQuestion) -> _Generated:
+    async def _generate(self, q: GoldenQuestion, skip_plan: bool) -> _Generated:
         request = QueryRequest(question=q.question)
-        plan = await self._llm.generate_structured(
-            system_prompt=load_prompt("plan", version="v1"),
-            user_prompt=build_user_prompt(self._ctx, request, [], plan=None),
-            response_model=QueryPlan,
+        plan = (
+            None
+            if skip_plan
+            else await self._llm.generate_structured(
+                system_prompt=load_prompt("plan", version="v1"),
+                user_prompt=build_user_prompt(self._ctx, request, [], plan=None),
+                response_model=QueryPlan,
+            )
         )
-        if plan.needs_clarification:
+        if plan is not None and plan.needs_clarification:
             return _Generated(plan=plan, sql="")
         out = await self._llm.generate_structured(
             system_prompt=load_prompt("sql", version="v1"),

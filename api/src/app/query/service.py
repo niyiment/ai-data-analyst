@@ -8,7 +8,12 @@ from app.core.errors import NotFound
 from app.llm.port import LLMClient
 from app.prompts.loader import load_prompt
 from app.query.executor import QueryExecutor
-from app.query.pipeline_helpers import RunMeta, build_user_prompt, make_run_and_response
+from app.query.pipeline_helpers import (
+    RunMeta,
+    build_user_prompt,
+    make_run_and_response,
+    should_skip_plan,
+)
 from app.query.repository import DatasetQueryContext, QueryRepository
 from app.query.schemas import (
     QueryHistoryResponse,
@@ -44,7 +49,11 @@ class QueryService:
 
         recent = await self._repo.get_recent_questions(session.id, dataset_id, limit=3)
         timings: dict[str, int] = {}
-        plan = await self._run_plan_stage(ctx, request, recent, timings)
+        plan = (
+            None
+            if should_skip_plan(ctx.table_names, request.question)
+            else await self._run_plan_stage(ctx, request, recent, timings)
+        )
         meta = RunMeta(
             run_id=uuid.uuid4(),
             session_id=session.id,

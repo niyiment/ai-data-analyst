@@ -61,6 +61,7 @@ class QuestionEvalExecution(BaseModel):
     tokens_in: int = 0
     tokens_out: int = 0
     failure_category: str | None = None
+    plan_skipped: bool = False
 
 
 class EvalQuestionResult(BaseModel):
@@ -76,6 +77,7 @@ class EvalQuestionResult(BaseModel):
     tokens_in: int
     tokens_out: int
     failure_category: str | None = None
+    plan_skipped: bool = False
 
 
 class EvalRunCreate(BaseModel):
@@ -103,4 +105,5 @@ class EvalRunDetail(BaseModel):
     total_tokens_in: int
     total_tokens_out: int
     failure_categories: dict[str, int]
+    accuracy_by_path: dict[str, float] = Field(default_factory=dict)
     results: list[EvalQuestionResult]

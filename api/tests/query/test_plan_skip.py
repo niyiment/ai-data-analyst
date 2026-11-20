@@ -44,7 +44,9 @@ async def test_simple_single_table_question_goes_straight_to_sql() -> None:
         [SqlGenerationOutput(sql="SELECT region, SUM(revenue) FROM retail_sales GROUP BY region")]
     )
     executor = FakeExecutor(
-        ExecutionResult(columns=["region"], rows=[{"region": "North"}], row_count=1, truncated=False)
+        ExecutionResult(
+            columns=["region"], rows=[{"region": "North"}], row_count=1, truncated=False
+        )
     )
     service = QueryService(FakeQueryRepository(session.id, ctx), llm, executor)
 
