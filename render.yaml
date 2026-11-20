@@ -1,0 +1,41 @@
+# Render Blueprint for the FastAPI service (ADR-0012).
+# Deploys are triggered by .github/workflows/cd.yml after CI passes and migrations run,
+# so autoDeploy is off. Secrets use sync: false: set them in the Render dashboard.
+services:
+  - type: web
+    name: ai-data-analyst-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    rootDir: api
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - key: DATABASE_URL_APP
+        sync: false
+      - key: DATABASE_URL_ANALYST
+        sync: false
+      - key: CLEANUP_SECRET
+        sync: false
+      - key: ALLOWED_ORIGIN
+        sync: false
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: SESSION_TTL_HOURS
+        value: "24"
+      - key: QUESTIONS_PER_SESSION_PER_HOUR
+        value: "30"
+      - key: LLM_DAILY_CALL_BUDGET
+        value: "1000"
+      - key: MAX_UPLOAD_MB
+        value: "10"
+      - key: QUERY_TIMEOUT_SECONDS
+        value: "10"
+      - key: LOG_LEVEL
+        value: INFO
