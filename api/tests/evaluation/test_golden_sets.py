@@ -8,7 +8,8 @@ from types import ModuleType
 import pytest
 
 from app.evaluation.golden_sets import GOLDEN_SETS
-from app.evaluation.schemas import GoldenQuestion
+from app.evaluation.schemas import GoldenQuestion, GoldenSet
+from app.query.pipeline_helpers import should_skip_plan
 from app.query.validator.pipeline import validate_sql
 from app.query.validator.types import ValidationContext
 
@@ -49,10 +50,15 @@ def test_only_ambiguity_questions_expect_clarification() -> None:
         assert q.expects_clarification == (q.category == "ambiguity"), q.id
 
 
-@pytest.mark.parametrize("question", RETAIL.questions, ids=lambda q: q.id)
-def test_reference_sql_passes_the_production_validator(question: GoldenQuestion) -> None:
+ALL_QUESTIONS = [(s, q) for s in GOLDEN_SETS.values() for q in s.questions]
+
+
+@pytest.mark.parametrize(("golden", "question"), ALL_QUESTIONS, ids=lambda v: getattr(v, "id", ""))
+def test_reference_sql_passes_the_production_validator(
+    golden: GoldenSet, question: GoldenQuestion
+) -> None:
     ctx = ValidationContext(
-        allowed_schema=RETAIL.demo_schema, allowed_tables=RETAIL.allowed_tables()
+        allowed_schema=golden.demo_schema, allowed_tables=golden.allowed_tables()
     )
     result = validate_sql(question.reference_sql, ctx)
 
@@ -79,3 +85,14 @@ def test_demo_seed_data_is_internally_consistent() -> None:
     for row in sales:
         units, price, revenue = row[5], Decimal(row[6]), Decimal(row[7])
         assert units * price == revenue, row[0]
+
+
+def test_retail_orders_set_exercises_the_direct_path() -> None:
+    orders = GOLDEN_SETS["retail_orders"]
+
+    assert orders.allowed_tables() == frozenset({"retail_sales"})
+    assert all(should_skip_plan(orders.allowed_tables(), q.question) for q in orders.questions)
+
+
+def test_retail_sales_set_exercises_the_planned_path() -> None:
+    assert not any(should_skip_plan(RETAIL.allowed_tables(), q.question) for q in RETAIL.questions)

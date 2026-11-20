@@ -40,8 +40,9 @@ async def test_list_sets_returns_retail_sales_golden_set() -> None:
 
     sets = service.list_sets()
     assert len(sets) >= 1
-    assert sets[0].name == "retail_sales"
-    assert sets[0].question_count >= 5
+    by_name = {s.name: s for s in sets}
+    assert by_name["retail_sales"].question_count >= 30
+    assert by_name["retail_orders"].question_count >= 20
 
 
 @pytest.mark.asyncio

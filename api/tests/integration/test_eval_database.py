@@ -30,7 +30,11 @@ async def _rows(sql: str) -> list[dict[str, object]]:
     return result.rows
 
 
-@pytest.mark.parametrize("question", RETAIL.questions, ids=lambda q: q.id)
+@pytest.mark.parametrize(
+    "question",
+    [q for s in GOLDEN_SETS.values() for q in s.questions],
+    ids=lambda q: q.id,
+)
 async def test_reference_sql_runs_as_analyst_ro_and_returns_rows(question: GoldenQuestion) -> None:
     assert await _rows(question.reference_sql)
 
