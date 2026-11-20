@@ -29,7 +29,7 @@ flowchart LR
     subgraph API_Layers["FastAPI Feature Modules"]
         Router["Routers (HTTP only)"] --> Service["Services (Use cases)"]
         Service --> Repo["Repositories (Metadata SQL)"]
-        Service --> LLM["LLMClient Port (Gemini)"]
+        Service --> LLM["LLMClient Port (Ollama / Gemini / Claude)"]
         Service --> Validator["SQLGlot AST Validator"]
         Validator --> Executor["Read-Only Executor"]
     end
@@ -43,7 +43,7 @@ flowchart LR
 ### Core Architectural Principles
 
 - **Strict layering:** `router -> service -> repository`. Routers handle HTTP only; services orchestrate use cases; repositories are the only layer touching metadata SQL.
-- **Provider independence:** All LLM calls go through an `LLMClient` interface with versioned prompt templates loaded from files.
+- **Provider independence:** All LLM calls go through an `LLMClient` interface with versioned prompt templates loaded from files. Adapters exist for Ollama (local or cloud), Gemini, and Claude; the default comes from `LLM_PROVIDER`, and a request can override provider, model, and API key with the `X-LLM-Provider`, `X-LLM-Model`, and `X-LLM-Api-Key` headers.
 - **Same-origin cookies:** Next.js proxies `/api/*` to the FastAPI backend so cookies remain first-party across free-tier hosts.
 - **Two-layer data expiry:** Lazy expiry on access plus a scheduled GitHub Actions cleanup job calling an authenticated, idempotent cleanup endpoint.
 
@@ -56,7 +56,7 @@ flowchart LR
 | **Frontend** | Next.js (TypeScript strict mode), Apache ECharts, Zod, Vitest, Playwright |
 | **Backend** | FastAPI (Python 3.12), Pydantic, SQLGlot, Alembic, `mypy` (strict), `Ruff`, `pytest` |
 | **Database** | PostgreSQL (Docker Compose locally; Neon free tier in production) |
-| **LLM** | Google Gemini behind an `LLMClient` port |
+| **LLM** | Ollama (local or cloud, default), Google Gemini, or Anthropic Claude behind an `LLMClient` port |
 | **Hosting & CI** | Vercel (web), Render (API Docker container), GitHub Actions (CI & scheduled cleanup) |
 
 ---
@@ -74,7 +74,7 @@ ai-data-analyst/
 └── README.md
 ```
 
-> **Note:** The repository is currently at **Week 0 (Foundations)**—engineering documentation and agent playbooks are in place, and the `api/` and `web/` scaffold is next.
+> **Status:** Weeks 0–4 are implemented: sessions and ingestion, the safe query core, charts, insights, reports, evaluation, rate limits, and the quota guard. Remaining work is the accessibility pass and Week 5 (production deploy, scheduled cleanup workflow, published accuracy results). See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ---
 
@@ -112,11 +112,11 @@ See [docs/SECURITY.md](docs/SECURITY.md) for the full threat model.
 - Docker & Docker Compose
 - Python 3.12+ and [`uv`](https://docs.astral.sh/uv/)
 - Node.js 20+ and [`pnpm`](https://pnpm.io/)
-- A Google Gemini API key
+- An LLM: a local [Ollama](https://ollama.com/) install (the default), or an API key for Ollama Cloud, Gemini, or Claude
 
 ### 1. Configure environment variables
 
-Copy `.env.example` to `.env` and fill in your `GEMINI_API_KEY` (never commit `.env`):
+Copy `.env.example` to `.env`, set `LLM_PROVIDER` (`ollama`, `ollama_cloud`, `gemini`, or `claude`), and fill in that provider's settings, e.g. `OLLAMA_MODEL`, `GEMINI_API_KEY`, or `ANTHROPIC_API_KEY` (never commit `.env`):
 
 ```bash
 cp .env.example .env
@@ -190,7 +190,7 @@ The production stack runs on free cloud tiers with zero hardcoded provider logic
 
 ### Required Environment Variables
 
-- **API (Render):** `DATABASE_URL_APP` (`app_rw`), `DATABASE_URL_ANALYST` (`analyst_ro`), `GEMINI_API_KEY`, `GEMINI_MODEL`, `SESSION_TTL_HOURS`, `CLEANUP_SECRET`, `ALLOWED_ORIGIN`, `MAX_UPLOAD_MB`, `MAX_ROWS`, `QUERY_TIMEOUT_SECONDS`, `LOG_LEVEL`
+- **API (Render):** `DATABASE_URL_APP` (`app_rw`), `DATABASE_URL_ANALYST` (`analyst_ro`), `LLM_PROVIDER` plus that provider's settings (`OLLAMA_CLOUD_BASE_URL` / `OLLAMA_CLOUD_API_KEY` / `OLLAMA_CLOUD_MODEL`, `GEMINI_API_KEY` / `GEMINI_MODEL`, or `ANTHROPIC_API_KEY` / `CLAUDE_MODEL`), `SESSION_TTL_HOURS`, `CLEANUP_SECRET`, `ALLOWED_ORIGIN`, `MAX_UPLOAD_MB`, `MAX_ROWS`, `QUERY_TIMEOUT_SECONDS`, `LOG_LEVEL`
 - **Migrations (CI / deploy step only):** `DATABASE_URL_OWNER` (`app_owner`) — never set on the running API service
 - **Web (Vercel):** `API_BASE_URL` (server-side only, pointing to the Render API URL)
 
@@ -206,10 +206,10 @@ The production stack runs on free cloud tiers with zero hardcoded provider logic
 
 ## Testing & Evaluation
 
-- **Unit & API tests:** `pytest` with fake DB/LLM adapters (backend) and `Vitest` (frontend). No unit test ever calls the live Gemini API.
+- **Unit & API tests:** `pytest` with fake DB/LLM adapters (backend) and `Vitest` (frontend). No unit test ever calls a live LLM provider.
 - **Integration & security tests:** `pytest` against PostgreSQL in Docker, including an adversarial SQL suite (100% block target) and cross-session authorisation tests.
 - **End-to-end tests:** Playwright against the local stack.
-- **Evaluation:** Golden question sets (~30 questions per demo dataset) compared by *execution result* rather than SQL text, targeting at least **80% execution accuracy** (90% stretch).
+- **Evaluation:** Golden question sets (~30 questions per demo dataset) compared by *execution result* rather than SQL text, targeting at least **80% execution accuracy** (90% stretch). Run them from the Evaluation page or via `POST /api/v1/eval/runs`.
 
 See [docs/TESTING.md](docs/TESTING.md) for details.
 
@@ -235,11 +235,11 @@ See [docs/TESTING.md](docs/TESTING.md) for details.
 
 ## Roadmap
 
-| Week | Milestone |
-| --- | --- |
-| **0** | Foundations: docs, repo scaffold, CI (lint, type, size, layering), Docker Compose |
-| **1** | Sessions & ingestion: cookie sessions, upload, schema inference, per-dataset schemas, cleanup |
-| **2** | Safe query core: AST validator (100% adversarial block), read-only executor, plan/SQL pipeline |
-| **3** | Charts, insights & reports: ECharts spec validation, on-demand insights, PDF/HTML export |
-| **4** | Evaluation & hardening: golden sets, eval UI, rate limits, quota guard, accessibility |
-| **5** | Deploy & polish: Vercel + Render + Neon production deploy, scheduled cleanup, demo |
+| Week | Milestone | Status |
+| --- | --- | --- |
+| **0** | Foundations: docs, repo scaffold, CI (lint, type, size, layering), Docker Compose | Done |
+| **1** | Sessions & ingestion: cookie sessions, upload, schema inference, per-dataset schemas, cleanup | Done |
+| **2** | Safe query core: AST validator (100% adversarial block), read-only executor, plan/SQL pipeline | Done |
+| **3** | Charts, insights & reports: ECharts spec validation, on-demand insights, PDF/HTML export | Done |
+| **4** | Evaluation & hardening: golden sets, eval UI, rate limits, quota guard, accessibility | Done, except accessibility pass |
+| **5** | Deploy & polish: Vercel + Render + Neon production deploy, scheduled cleanup, demo | Not started |
