@@ -8,6 +8,7 @@ from google.genai import types
 from pydantic import BaseModel
 
 from app.core.errors import QuotaExceeded
+from app.llm.usage import record_usage
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -56,5 +57,8 @@ class GeminiLLMClient:
                 raise QuotaExceeded("LLM quota exceeded. Please try again shortly.") from exc
             raise
 
+        usage = getattr(response, "usage_metadata", None)
+        if usage is not None:
+            record_usage(usage.prompt_token_count, usage.candidates_token_count)
         text = response.text or "{}"
         return response_model.model_validate_json(text)

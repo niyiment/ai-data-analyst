@@ -12,6 +12,7 @@ from app.evaluation.schemas import (
     QuestionEvalExecution,
 )
 from app.llm.port import LLMClient
+from app.llm.usage import measure_usage
 from app.prompts.loader import load_prompt
 from app.query.executor import ExecutionResult, QueryExecutor
 from app.query.pipeline_helpers import build_user_prompt, should_skip_plan
@@ -54,11 +55,14 @@ class LlmEvalRunner:
         q = self._by_id[question_id]
         skip_plan = should_skip_plan(self._set.allowed_tables(), q.question)
         start = time.perf_counter()
-        outcome, sql, failure = await self._evaluate(q, skip_plan)
+        with measure_usage() as usage:
+            outcome, sql, failure = await self._evaluate(q, skip_plan)
         return QuestionEvalExecution(
             outcome=outcome,
             generated_sql=sql,
             latency_ms=int((time.perf_counter() - start) * 1000),
+            tokens_in=usage.tokens_in,
+            tokens_out=usage.tokens_out,
             failure_category=failure,
             plan_skipped=skip_plan,
         )

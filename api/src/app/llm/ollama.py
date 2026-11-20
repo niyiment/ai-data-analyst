@@ -7,6 +7,7 @@ import httpx
 from pydantic import BaseModel
 
 from app.core.errors import QuotaExceeded
+from app.llm.usage import record_usage
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -64,5 +65,7 @@ class OllamaLLMClient:
         if response.status_code == 429:
             raise QuotaExceeded("LLM quota exceeded. Please try again shortly.")
         response.raise_for_status()
-        content = response.json().get("message", {}).get("content", "{}")
+        body = response.json()
+        record_usage(body.get("prompt_eval_count"), body.get("eval_count"))
+        content = body.get("message", {}).get("content", "{}")
         return response_model.model_validate_json(_strip_fences(content) or "{}")
