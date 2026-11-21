@@ -9,7 +9,7 @@ export interface LlmConfig {
 export const DEFAULT_MODELS: Record<LlmProvider, string> = {
   ollama: "llama3.2",
   ollama_cloud: "llama3.2",
-  gemini: "gemini-2.5-flash",
+  gemini: "gemini-3.8-flash",
   claude: "claude-3-5-sonnet-latest",
 };
 

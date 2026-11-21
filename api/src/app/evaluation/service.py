@@ -68,7 +68,7 @@ class EvaluationService:
 
     @property
     def model_name(self) -> str:
-        """Label of the model under evaluation, e.g. 'gemini:gemini-2.5-flash'."""
+        """Label of the model under evaluation, e.g. 'gemini:gemini-3.8-flash'."""
         return self._model_name
 
     def build_runner(self, golden_set: GoldenSet) -> EvalRunner:

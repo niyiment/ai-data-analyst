@@ -89,7 +89,7 @@ export function SettingsView() {
               >
                 <option value="ollama">Ollama — Free local model (default, no API key)</option>
                 <option value="ollama_cloud">Ollama Cloud — API key required</option>
-                <option value="gemini">Google Gemini (gemini-2.5-flash)</option>
+                <option value="gemini">Google Gemini (gemini-3.8-flash)</option>
                 <option value="claude">Anthropic Claude (claude-3-5-sonnet-latest)</option>
               </select>
             </div>
