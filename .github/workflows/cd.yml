@@ -61,15 +61,19 @@ jobs:
       RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
       SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
     steps:
-      - name: Sync secret env vars to Render (GitHub secrets are the source of truth)
+      - name: Sync env vars to Render (GitHub is the source of truth)
         env:
           DATABASE_URL_APP: ${{ secrets.DATABASE_URL_APP }}
           DATABASE_URL_ANALYST: ${{ secrets.DATABASE_URL_ANALYST }}
           CLEANUP_SECRET: ${{ secrets.CLEANUP_SECRET }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           ALLOWED_ORIGIN: ${{ vars.WEB_PUBLIC_URL }}
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
         run: |
-          for key in DATABASE_URL_APP DATABASE_URL_ANALYST CLEANUP_SECRET GEMINI_API_KEY ALLOWED_ORIGIN; do
+          for key in DATABASE_URL_APP DATABASE_URL_ANALYST CLEANUP_SECRET GEMINI_API_KEY \
+                     ALLOWED_ORIGIN LLM_PROVIDER GEMINI_MODEL; do
+            if [ -z "${!key}" ]; then echo "::error::$key is not configured" && exit 1; fi
             jq -n --arg v "${!key}" '{value: $v}' | curl -fsS -o /dev/null -X PUT \
               "https://api.render.com/v1/services/$SERVICE_ID/env-vars/$key" \
               -H "Authorization: Bearer $RENDER_API_KEY" -H "Content-Type: application/json" \
