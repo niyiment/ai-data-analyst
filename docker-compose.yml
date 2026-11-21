@@ -28,7 +28,7 @@ services:
       DATABASE_URL_APP: postgresql+psycopg://app_rw:local_app_rw_password@postgres:5432/ai_data_analyst
       DATABASE_URL_ANALYST: postgresql+psycopg://analyst_ro:local_analyst_ro_password@postgres:5432/ai_data_analyst
       GEMINI_API_KEY: ${GEMINI_API_KEY:-replace-me}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
       SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-24}
       CLEANUP_SECRET: ${CLEANUP_SECRET:-local-cleanup-secret}
       ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-http://localhost:3000}

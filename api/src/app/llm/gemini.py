@@ -16,7 +16,7 @@ T = TypeVar("T", bound=BaseModel)
 class GeminiLLMClient:
     """Calls Gemini with structured JSON output and validates against a Pydantic model."""
 
-    def __init__(self, *, api_key: str, model: str = "gemini-2.5-flash") -> None:
+    def __init__(self, *, api_key: str, model: str = "gemini-3.8-flash") -> None:
         self._client = genai.Client(api_key=api_key)
         self._model = model
 
