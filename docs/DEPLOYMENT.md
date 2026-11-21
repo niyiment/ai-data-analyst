@@ -43,8 +43,7 @@ Deploys are serialized (`concurrency: production`). Render `autoDeploy` is off (
 
 **Neon:** create the project; copy the owner connection string (with `sslmode=require`).
 
-**Render:** create the service from the `render.yaml` Blueprint, then set:
-`DATABASE_URL_APP` (`app_rw`), `DATABASE_URL_ANALYST` (`analyst_ro`), `CLEANUP_SECRET`, `ALLOWED_ORIGIN` (the Vercel URL), `GEMINI_API_KEY`. Create an API key for the CD workflow.
+**Render:** create the service from the `render.yaml` Blueprint and create an API key for the CD workflow. Do not type secrets into the dashboard: before every deploy, `cd.yml` syncs `DATABASE_URL_APP`, `DATABASE_URL_ANALYST`, `CLEANUP_SECRET`, `GEMINI_API_KEY`, and `ALLOWED_ORIGIN` from GitHub to Render through the Render API.
 
 **Vercel:** import the repository with **Root Directory `web`**; set `API_BASE_URL` (the Render URL) for Production and Preview; create a token. Note the org and project IDs (`vercel link`, or project settings).
 
@@ -52,10 +51,10 @@ Deploys are serialized (`concurrency: production`). Render `autoDeploy` is off (
 
 | Kind | Name |
 | --- | --- |
-| Secret | `DATABASE_URL_OWNER`, `APP_RW_PASSWORD`, `ANALYST_RO_PASSWORD`, `RENDER_API_KEY`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `CLEANUP_SECRET` |
+| Secret | `DATABASE_URL_OWNER`, `DATABASE_URL_APP` (`app_rw`), `DATABASE_URL_ANALYST` (`analyst_ro`), `APP_RW_PASSWORD`, `ANALYST_RO_PASSWORD`, `GEMINI_API_KEY`, `RENDER_API_KEY`, `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `CLEANUP_SECRET` |
 | Variable | `RENDER_SERVICE_ID`, `API_PUBLIC_URL` (Render URL), `WEB_PUBLIC_URL` (Vercel URL) |
 
-The preview workflow has no environment, so `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` are also needed as repository secrets. `APP_RW_PASSWORD` and `ANALYST_RO_PASSWORD` must match the passwords in Render's `DATABASE_URL_APP` and `DATABASE_URL_ANALYST`.
+The preview workflow has no environment, so `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` are also needed as repository secrets. `APP_RW_PASSWORD` and `ANALYST_RO_PASSWORD` must match the passwords inside `DATABASE_URL_APP` and `DATABASE_URL_ANALYST`. Use Neon's direct (unpooled) host.
 
 ## 10.4 Monitoring and runbook
 

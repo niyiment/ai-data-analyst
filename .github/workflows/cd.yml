@@ -61,6 +61,21 @@ jobs:
       RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
       SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
     steps:
+      - name: Sync secret env vars to Render (GitHub secrets are the source of truth)
+        env:
+          DATABASE_URL_APP: ${{ secrets.DATABASE_URL_APP }}
+          DATABASE_URL_ANALYST: ${{ secrets.DATABASE_URL_ANALYST }}
+          CLEANUP_SECRET: ${{ secrets.CLEANUP_SECRET }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ALLOWED_ORIGIN: ${{ vars.WEB_PUBLIC_URL }}
+        run: |
+          for key in DATABASE_URL_APP DATABASE_URL_ANALYST CLEANUP_SECRET GEMINI_API_KEY ALLOWED_ORIGIN; do
+            jq -n --arg v "${!key}" '{value: $v}' | curl -fsS -o /dev/null -X PUT \
+              "https://api.render.com/v1/services/$SERVICE_ID/env-vars/$key" \
+              -H "Authorization: Bearer $RENDER_API_KEY" -H "Content-Type: application/json" \
+              --data-binary @-
+            echo "synced $key"
+          done
       - name: Trigger a deploy of the tested commit
         id: trigger
         run: |
