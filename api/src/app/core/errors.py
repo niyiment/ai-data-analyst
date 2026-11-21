@@ -34,10 +34,17 @@ class ValidationRejected(DomainError):
 
 
 class QuotaExceeded(DomainError):
-    """Raised when rate limit or LLM quota is exceeded."""
+    """Raised when LLM quota is exceeded."""
 
     status_code = 429
     code = "QUOTA_EXCEEDED"
+
+
+class RateLimited(DomainError):
+    """Raised when a per-session or per-IP rate limit is exceeded."""
+
+    status_code = 429
+    code = "RATE_LIMITED"
 
 
 class NotFound(DomainError):
@@ -52,3 +59,31 @@ class Forbidden(DomainError):
 
     status_code = 403
     code = "FORBIDDEN"
+
+
+class SessionExpired(DomainError):
+    """Raised when a session cookie is missing, invalid, or expired."""
+
+    status_code = 401
+    code = "SESSION_EXPIRED"
+
+
+class FileTooLarge(DomainError):
+    """Raised when an uploaded file exceeds MAX_UPLOAD_MB."""
+
+    status_code = 413
+    code = "FILE_TOO_LARGE"
+
+
+class UnsupportedFile(DomainError):
+    """Raised when an uploaded file is not a valid CSV or XLSX."""
+
+    status_code = 400
+    code = "UNSUPPORTED_FILE"
+
+
+class QueryTimeout(DomainError):
+    """Raised when a read-only SQL query exceeds the statement timeout."""
+
+    status_code = 504
+    code = "QUERY_TIMEOUT"

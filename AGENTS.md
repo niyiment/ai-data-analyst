@@ -39,8 +39,10 @@ AI Data Analyst turns spreadsheets into queryable tables and answers natural-lan
 - Lint: `cd api && uv run ruff check .` and `cd web && pnpm run lint`
 - Type-check: `cd api && uv run mypy src tests` and `cd web && pnpm run typecheck`
 - Guardrails: `python scripts/check_limits.py` and `python scripts/check_layering.py`
-- Test: `cd api && uv run pytest`
-- Run evaluation: TBD (Week 4)
+- Test: `cd api && uv run pytest` and `cd web && pnpm test` (coverage: `pnpm test:coverage`)
+- E2E: `cd web && pnpm test:e2e` (needs `docker compose up -d postgres` and migrations; starts an LLM stub, the API on :8001, and the web app on :3100)
+- Load: see `loadtest/README.md` (`uv run --with locust locust -f loadtest/locustfile.py ...`)
+- Run evaluation: start the API (with migrations applied and an LLM configured), then use the Evaluation page or `POST /api/v1/eval/runs` with `{"set_name": "retail_sales"}`
 
 ## Task playbooks (skills)
 

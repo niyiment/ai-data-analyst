@@ -1,0 +1,198 @@
+{
+  "name": "retail_orders",
+  "demo_schema": "demo_retail_sales",
+  "description": "Single-table questions on retail orders; exercises the direct (plan-skipped) path.",
+  "table_names": [
+    "retail_sales"
+  ],
+  "schema_summary": "Table retail_sales (40 rows): order_id (integer), order_date (date), region (text), category (text), product (text), units (integer), unit_price (numeric), revenue (numeric), returned (boolean)",
+  "questions": [
+    {
+      "id": "ro-01",
+      "category": "aggregate",
+      "difficulty": "easy",
+      "question": "How many total orders are in the dataset?",
+      "reference_sql": "SELECT COUNT(*) AS total_orders FROM retail_sales"
+    },
+    {
+      "id": "ro-02",
+      "category": "group_by",
+      "difficulty": "easy",
+      "question": "What is the total revenue by region?",
+      "reference_sql": "SELECT region, SUM(revenue) AS total_revenue FROM retail_sales GROUP BY region"
+    },
+    {
+      "id": "ro-03",
+      "category": "ranking",
+      "difficulty": "medium",
+      "order_sensitive": true,
+      "question": "Which category generated the highest total revenue?",
+      "reference_sql": "SELECT category, SUM(revenue) AS total_revenue FROM retail_sales GROUP BY category ORDER BY total_revenue DESC LIMIT 1"
+    },
+    {
+      "id": "ro-04",
+      "category": "filter",
+      "difficulty": "easy",
+      "question": "List all returned orders with their product and revenue.",
+      "reference_sql": "SELECT order_id, product, revenue FROM retail_sales WHERE returned = TRUE"
+    },
+    {
+      "id": "ro-05",
+      "category": "group_by",
+      "difficulty": "medium",
+      "question": "What is the average unit price per category?",
+      "reference_sql": "SELECT category, AVG(unit_price) AS avg_price FROM retail_sales GROUP BY category"
+    },
+    {
+      "id": "ro-06",
+      "category": "ranking",
+      "difficulty": "medium",
+      "order_sensitive": true,
+      "question": "What are the top 3 products by total units sold?",
+      "reference_sql": "SELECT product, SUM(units) AS total_units FROM retail_sales GROUP BY product ORDER BY total_units DESC LIMIT 3"
+    },
+    {
+      "id": "ro-07",
+      "category": "date_logic",
+      "difficulty": "medium",
+      "question": "What is the total revenue for orders placed in January 2026?",
+      "reference_sql": "SELECT SUM(revenue) AS jan_revenue FROM retail_sales WHERE order_date >= '2026-01-01' AND order_date < '2026-02-01'"
+    },
+    {
+      "id": "ro-08",
+      "category": "filter",
+      "difficulty": "medium",
+      "question": "How many orders were not returned in the North region?",
+      "reference_sql": "SELECT COUNT(*) AS order_count FROM retail_sales WHERE region = 'North' AND returned = FALSE"
+    },
+    {
+      "id": "ro-09",
+      "category": "filter",
+      "difficulty": "easy",
+      "question": "Which orders had revenue over 500? Show the order id and revenue.",
+      "reference_sql": "SELECT order_id, revenue FROM retail_sales WHERE revenue > 500"
+    },
+    {
+      "id": "ro-10",
+      "category": "filter",
+      "difficulty": "easy",
+      "question": "List the Furniture orders placed in the West region.",
+      "reference_sql": "SELECT order_id, product, units, revenue FROM retail_sales WHERE category = 'Furniture' AND region = 'West'"
+    },
+    {
+      "id": "ro-11",
+      "category": "filter",
+      "difficulty": "medium",
+      "question": "Which Office Supplies orders had more than 5 units? Show order id, product, and units.",
+      "reference_sql": "SELECT order_id, product, units FROM retail_sales WHERE category = 'Office Supplies' AND units > 5"
+    },
+    {
+      "id": "ro-12",
+      "category": "aggregate",
+      "difficulty": "easy",
+      "question": "What is the total revenue across all orders?",
+      "reference_sql": "SELECT SUM(revenue) AS total_revenue FROM retail_sales"
+    },
+    {
+      "id": "ro-13",
+      "category": "aggregate",
+      "difficulty": "easy",
+      "question": "What is the average revenue per order?",
+      "reference_sql": "SELECT AVG(revenue) AS avg_revenue FROM retail_sales"
+    },
+    {
+      "id": "ro-14",
+      "category": "aggregate",
+      "difficulty": "easy",
+      "question": "How many distinct products have been sold?",
+      "reference_sql": "SELECT COUNT(DISTINCT product) AS product_count FROM retail_sales"
+    },
+    {
+      "id": "ro-15",
+      "category": "aggregate",
+      "difficulty": "medium",
+      "question": "How many units were sold in orders that were later returned?",
+      "reference_sql": "SELECT SUM(units) AS returned_units FROM retail_sales WHERE returned = TRUE"
+    },
+    {
+      "id": "ro-16",
+      "category": "group_by",
+      "difficulty": "easy",
+      "question": "How many orders are there in each category?",
+      "reference_sql": "SELECT category, COUNT(*) AS order_count FROM retail_sales GROUP BY category"
+    },
+    {
+      "id": "ro-17",
+      "category": "group_by",
+      "difficulty": "medium",
+      "question": "How many returned orders does each region have?",
+      "reference_sql": "SELECT region, COUNT(*) AS returned_orders FROM retail_sales WHERE returned = TRUE GROUP BY region"
+    },
+    {
+      "id": "ro-18",
+      "category": "group_by",
+      "difficulty": "easy",
+      "question": "What is the total number of units sold for each product?",
+      "reference_sql": "SELECT product, SUM(units) AS total_units FROM retail_sales GROUP BY product"
+    },
+    {
+      "id": "ro-19",
+      "category": "group_by",
+      "difficulty": "medium",
+      "question": "What is the revenue by category, excluding returned orders?",
+      "reference_sql": "SELECT category, SUM(revenue) AS net_revenue FROM retail_sales WHERE returned = FALSE GROUP BY category"
+    },
+    {
+      "id": "ro-20",
+      "category": "date_logic",
+      "difficulty": "medium",
+      "question": "What is the total revenue for each month?",
+      "reference_sql": "SELECT DATE_TRUNC('month', order_date) AS month, SUM(revenue) AS total_revenue FROM retail_sales GROUP BY DATE_TRUNC('month', order_date)"
+    },
+    {
+      "id": "ro-21",
+      "category": "date_logic",
+      "difficulty": "medium",
+      "question": "How many orders were placed between February 20 and February 28, 2026 inclusive?",
+      "reference_sql": "SELECT COUNT(*) AS order_count FROM retail_sales WHERE order_date BETWEEN '2026-02-20' AND '2026-02-28'"
+    },
+    {
+      "id": "ro-22",
+      "category": "date_logic",
+      "difficulty": "easy",
+      "question": "How many orders were placed in March 2026?",
+      "reference_sql": "SELECT COUNT(*) AS order_count FROM retail_sales WHERE order_date >= '2026-03-01' AND order_date < '2026-04-01'"
+    },
+    {
+      "id": "ro-23",
+      "category": "date_logic",
+      "difficulty": "medium",
+      "question": "What was the date of the first order in each region?",
+      "reference_sql": "SELECT region, MIN(order_date) AS first_order_date FROM retail_sales GROUP BY region"
+    },
+    {
+      "id": "ro-24",
+      "category": "ranking",
+      "difficulty": "easy",
+      "order_sensitive": true,
+      "question": "What was the single largest order by revenue? Show its order id and revenue.",
+      "reference_sql": "SELECT order_id, revenue FROM retail_sales ORDER BY revenue DESC LIMIT 1"
+    },
+    {
+      "id": "ro-25",
+      "category": "ranking",
+      "difficulty": "medium",
+      "order_sensitive": true,
+      "question": "Which region has the lowest total revenue?",
+      "reference_sql": "SELECT region, SUM(revenue) AS total_revenue FROM retail_sales GROUP BY region ORDER BY total_revenue ASC LIMIT 1"
+    },
+    {
+      "id": "ro-26",
+      "category": "ranking",
+      "difficulty": "medium",
+      "order_sensitive": true,
+      "question": "List the top 5 orders by revenue, highest first, with order id and revenue.",
+      "reference_sql": "SELECT order_id, revenue FROM retail_sales ORDER BY revenue DESC LIMIT 5"
+    }
+  ]
+}

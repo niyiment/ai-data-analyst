@@ -1,2 +1,2 @@
-// Public surface for the datasets feature module.
-export {};
+export { DatasetWorkspace } from "./components/DatasetWorkspace";
+export type { ColumnInfo, DatasetDetail, TableInfo } from "./types/dataset";

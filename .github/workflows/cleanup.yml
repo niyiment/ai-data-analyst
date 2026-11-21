@@ -1,0 +1,25 @@
+name: Scheduled cleanup
+
+# Second layer of the 24-hour deletion guarantee (ADR-0011): purge expired sessions and
+# drop their ds_* schemas. A failed run is the alert (docs/DEPLOYMENT.md 10.4).
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: POST /api/v1/internal/cleanup
+        env:
+          API: ${{ vars.API_PUBLIC_URL }}
+          CLEANUP_SECRET: ${{ secrets.CLEANUP_SECRET }}
+        run: |
+          # Render's free tier sleeps; allow time for a cold start.
+          curl -fsS --retry 6 --retry-delay 10 --retry-all-errors --max-time 60 \
+            -X POST "$API/api/v1/internal/cleanup" -H "X-Cleanup-Secret: $CLEANUP_SECRET"
