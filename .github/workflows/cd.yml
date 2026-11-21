@@ -135,6 +135,7 @@ jobs:
     name: Production smoke test
     needs: deploy-web
     runs-on: ubuntu-latest
+    environment: production # WEB_PUBLIC_URL is an environment-level variable
     env:
       WEB: ${{ vars.WEB_PUBLIC_URL }}
     steps:
