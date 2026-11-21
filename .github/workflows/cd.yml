@@ -108,7 +108,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - run: npm install --global vercel@39.1.1
+      - run: npm install --global vercel@64.2.0
       - name: Pull production settings and env (incl. API_BASE_URL)
         run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
       - name: Build
