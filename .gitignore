@@ -32,3 +32,9 @@ Thumbs.db
 web/test-results/
 web/playwright-report/
 web/blob-report/
+
+# Vercel CLI link
+.vercel
+
+.vercel
+.env*
