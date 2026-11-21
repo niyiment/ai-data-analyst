@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     ollama_cloud_api_key: str = ""
     ollama_cloud_model: str = "llama3.2"
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-3.8-flash"
     anthropic_api_key: str = ""
     claude_model: str = "claude-3-5-sonnet-latest"
     session_ttl_hours: int = 24
