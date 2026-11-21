@@ -29,10 +29,8 @@ describe("apiRequest", () => {
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("/api/v1/x");
     expect(init.credentials).toBe("same-origin");
-    expect(init.headers).toMatchObject({
-      "Content-Type": "application/json",
-      "X-LLM-Provider": "ollama",
-    });
+    expect(init.headers).toMatchObject({ "Content-Type": "application/json" });
+    expect(init.headers).not.toHaveProperty("X-LLM-Provider");
   });
 
   it("forwards the saved LLM provider, model, and key as headers", async () => {

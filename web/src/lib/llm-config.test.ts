@@ -6,9 +6,10 @@ const DEFAULT = { provider: "ollama", apiKey: "", model: "" };
 describe("llm-config", () => {
   beforeEach(() => window.sessionStorage.clear());
 
-  it("defaults to local Ollama with no key", () => {
+  it("shows Ollama as the starting choice but sends no override until one is saved", () => {
+    // Sending a provider by default would override the server's LLM_PROVIDER (production bug).
     expect(loadLlmConfig()).toEqual(DEFAULT);
-    expect(getLlmHeaders()).toEqual({ "X-LLM-Provider": "ollama" });
+    expect(getLlmHeaders()).toEqual({});
   });
 
   it("round-trips a saved config and clears it", () => {
@@ -17,6 +18,7 @@ describe("llm-config", () => {
 
     clearLlmConfig();
     expect(loadLlmConfig()).toEqual(DEFAULT);
+    expect(getLlmHeaders()).toEqual({});
   });
 
   it("keeps keys in sessionStorage only, never localStorage", () => {
@@ -35,6 +37,7 @@ describe("llm-config", () => {
       JSON.stringify({ provider: "evil", apiKey: 42, model: null }),
     );
     expect(loadLlmConfig()).toEqual(DEFAULT);
+    expect(getLlmHeaders()).toEqual({});
   });
 
   it("omits blank key and model headers", () => {

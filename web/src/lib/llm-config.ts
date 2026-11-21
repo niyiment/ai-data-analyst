@@ -50,7 +50,24 @@ export function clearLlmConfig(): void {
   window.sessionStorage.removeItem(STORAGE_KEY);
 }
 
+function hasSavedProvider(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = window.sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const provider = (JSON.parse(raw) as Partial<LlmConfig>).provider;
+    return parseProvider(provider) === provider;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Per-request LLM override headers. Sent only when the user saved a choice in
+ * AI Settings; otherwise the server's configured LLM_PROVIDER applies.
+ */
 export function getLlmHeaders(): Record<string, string> {
+  if (!hasSavedProvider()) return {};
   const cfg = loadLlmConfig();
   const headers: Record<string, string> = { "X-LLM-Provider": cfg.provider };
   if (cfg.apiKey.trim()) headers["X-LLM-Api-Key"] = cfg.apiKey.trim();
